@@ -1,0 +1,6 @@
+openapi: 3.0.3
+info:
+  title: Family Expenses API
+  version: 0.1.0
+  description: REST API for the family expenses web panel.
+paths: {}

@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Build artifacts
+/app
+/bin/
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

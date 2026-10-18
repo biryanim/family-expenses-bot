@@ -1,0 +1,6 @@
+.git
+.env
+.claude
+openspec
+web/node_modules
+web/dist
