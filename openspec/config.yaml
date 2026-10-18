@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  Write all artifacts in Russian.
+  Stack, folder layout, architecture and domain rules are defined in AGENTS.md at the repo root; designs and tasks must follow it and must not introduce other libraries or layouts without stating why in design.md.
+  Users in the Telegram bot must only ever access their own expenses: user_id comes from the Telegram update in code, never from the LLM. Any change touching the bot or agent must include tests for this isolation.
+  Money is stored as int64 minor units (kopecks), never float.
+  Deliverable must run with a single `docker compose up`; LLM access is configured only via config (base_url, api_key, model).
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
