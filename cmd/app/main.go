@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/biryanim/family-expenses-bot/internal/config"
-	"github.com/biryanim/family-expenses-bot/internal/repository"
+	"github.com/biryanim/family-expenses-bot/internal/database/postgres"
 )
 
 func main() {
@@ -32,12 +32,11 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := repository.NewPool(ctx, cfg.DB.DSN)
+	pool, err := postgres.Connect(ctx, logger, cfg.DB.DSN)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	logger.Info("database connected")
 
 	logger.Info("app started", slog.Any("config", cfg))
 
