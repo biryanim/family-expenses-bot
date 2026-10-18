@@ -20,4 +20,5 @@ type ExpenseRepository interface {
 	DeleteExpenseForUser(ctx context.Context, userID, id int64) error
 
 	ListUsers(ctx context.Context) ([]entity.User, error)
+	UpsertUser(ctx context.Context, u entity.User) error
 }

@@ -188,3 +188,17 @@ func (mr *MockExpenseRepositoryMockRecorder) UpdateExpenseForUser(ctx, userID, e
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExpenseForUser", reflect.TypeOf((*MockExpenseRepository)(nil).UpdateExpenseForUser), ctx, userID, e)
 }
+
+// UpsertUser mocks base method.
+func (m *MockExpenseRepository) UpsertUser(ctx context.Context, u entity.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertUser", ctx, u)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertUser indicates an expected call of UpsertUser.
+func (mr *MockExpenseRepositoryMockRecorder) UpsertUser(ctx, u any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertUser", reflect.TypeOf((*MockExpenseRepository)(nil).UpsertUser), ctx, u)
+}

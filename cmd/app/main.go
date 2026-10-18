@@ -13,10 +13,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
+
 	"github.com/biryanim/family-expenses-bot/internal/config"
 	"github.com/biryanim/family-expenses-bot/internal/database/postgres"
 	"github.com/biryanim/family-expenses-bot/internal/database/repository"
 	httpapi "github.com/biryanim/family-expenses-bot/internal/transport/http"
+	"github.com/biryanim/family-expenses-bot/internal/transport/telegram"
 	"github.com/biryanim/family-expenses-bot/internal/usecase"
 )
 
@@ -49,6 +53,18 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	defer pool.Close()
 
 	uc := usecase.New(repository.New(pool))
+
+	b, err := bot.New(cfg.Telegram.Token,
+		bot.WithErrorsHandler(func(err error) {
+			logger.Error("telegram bot error", slog.Any("error", err))
+		}),
+		bot.WithAllowedUpdates(bot.AllowedUpdates{"message"}),
+	)
+	if err != nil {
+		return fmt.Errorf("bot.New: %w", err)
+	}
+	b.RegisterHandlerMatchFunc(func(*models.Update) bool { return true }, telegram.New(uc, b, logger).HandleUpdate)
+
 	srv := &http.Server{
 		Handler:           httpapi.NewRouter(httpapi.New(uc, logger), cfg.HTTP.AllowedOrigins),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -66,6 +82,13 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	}()
 
 	logger.Info("http server started", slog.String("addr", ln.Addr().String()))
+
+	botDone := make(chan struct{})
+	go func() {
+		b.Start(ctx)
+		close(botDone)
+	}()
+	logger.Info("telegram bot started")
 	logger.Info("app started", slog.Any("config", cfg))
 
 	select {
@@ -82,6 +105,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	if err := <-serveErr; !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("srv.Serve: %w", err)
 	}
+	<-botDone
 
 	logger.Info("app stopped")
 	return nil
