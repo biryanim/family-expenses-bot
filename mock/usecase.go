@@ -114,6 +114,21 @@ func (mr *MockExpenseRepositoryMockRecorder) GetExpenseForUser(ctx, userID, id a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExpenseForUser", reflect.TypeOf((*MockExpenseRepository)(nil).GetExpenseForUser), ctx, userID, id)
 }
 
+// GetLastExpenseForUser mocks base method.
+func (m *MockExpenseRepository) GetLastExpenseForUser(ctx context.Context, userID int64) (entity.Expense, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLastExpenseForUser", ctx, userID)
+	ret0, _ := ret[0].(entity.Expense)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastExpenseForUser indicates an expected call of GetLastExpenseForUser.
+func (mr *MockExpenseRepositoryMockRecorder) GetLastExpenseForUser(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastExpenseForUser", reflect.TypeOf((*MockExpenseRepository)(nil).GetLastExpenseForUser), ctx, userID)
+}
+
 // ListExpenses mocks base method.
 func (m *MockExpenseRepository) ListExpenses(ctx context.Context, f entity.ExpenseFilter) ([]entity.Expense, error) {
 	m.ctrl.T.Helper()

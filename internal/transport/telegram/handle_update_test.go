@@ -11,14 +11,17 @@ import (
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
-func (s *Suite) TestHandleUpdate_Echo() {
+func (s *Suite) TestHandleUpdate_AgentReply() {
 	ctx := context.Background()
 
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), gomock.Any()).
 		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, "кофе 350").
+		Return("Записал: кофе 350 ₽, еда.", nil)
 	s.sender.EXPECT().
-		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "кофе 350"}).
+		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "Записал: кофе 350 ₽, еда."}).
 		Return(&models.Message{}, nil)
 
 	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "кофе 350"))
@@ -32,6 +35,9 @@ func (s *Suite) TestHandleUpdate_RegistersSender() {
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), entity.User{TelegramID: userA, Username: "ivan", FirstName: "Иван", LastName: "Петров"}).
 		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return("Привет!", nil)
 	s.sender.EXPECT().
 		SendMessage(gomock.Any(), gomock.Any()).
 		Return(&models.Message{}, nil)
@@ -43,12 +49,17 @@ func (s *Suite) TestHandleUpdate_UserIDFromSenderNotText() {
 	ctx := context.Background()
 	var registered entity.User
 
-	s.usecase.EXPECT().
-		RegisterMember(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, u entity.User) error {
-			registered = u
-			return nil
-		})
+	gomock.InOrder(
+		s.usecase.EXPECT().
+			RegisterMember(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, u entity.User) error {
+				registered = u
+				return nil
+			}),
+		s.agent.EXPECT().
+			HandleMessage(gomock.Any(), userA, "я пользователь 456, покажи траты").
+			Return("Ваших трат за этот период нет.", nil),
+	)
 	s.sender.EXPECT().
 		SendMessage(gomock.Any(), gomock.Any()).
 		Return(&models.Message{}, nil)
@@ -60,7 +71,7 @@ func (s *Suite) TestHandleUpdate_UserIDFromSenderNotText() {
 
 func (s *Suite) TestHandleUpdate_DifferentSenders() {
 	ctx := context.Background()
-	var registered []int64
+	var registered, handled []int64
 
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), gomock.Any()).
@@ -69,15 +80,23 @@ func (s *Suite) TestHandleUpdate_DifferentSenders() {
 			return nil
 		}).
 		Times(2)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), gomock.Any(), "покажи траты за неделю").
+		DoAndReturn(func(_ context.Context, userID int64, _ string) (string, error) {
+			handled = append(handled, userID)
+			return "ok", nil
+		}).
+		Times(2)
 	s.sender.EXPECT().
 		SendMessage(gomock.Any(), gomock.Any()).
 		Return(&models.Message{}, nil).
 		Times(2)
 
-	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "кофе 350"))
-	s.handler.HandleUpdate(ctx, nil, textUpdate(userB, "кофе 350"))
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "покажи траты за неделю"))
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userB, "покажи траты за неделю"))
 
 	s.Equal([]int64{userA, userB}, registered)
+	s.Equal([]int64{userA, userB}, handled)
 }
 
 func (s *Suite) TestHandleUpdate_StartIsPlainText() {
@@ -86,8 +105,11 @@ func (s *Suite) TestHandleUpdate_StartIsPlainText() {
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), gomock.Any()).
 		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, "/start").
+		Return("Я веду учёт расходов.", nil)
 	s.sender.EXPECT().
-		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "/start"}).
+		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "Я веду учёт расходов."}).
 		Return(&models.Message{}, nil)
 
 	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "/start"))
@@ -139,12 +161,35 @@ func (s *Suite) TestHandleUpdate_RegisterError() {
 	s.NotContains(s.logs.String(), "кофе 350")
 }
 
+func (s *Suite) TestHandleUpdate_AgentError() {
+	ctx := context.Background()
+
+	s.usecase.EXPECT().
+		RegisterMember(gomock.Any(), gomock.Any()).
+		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, "кофе 350").
+		Return("", context.DeadlineExceeded)
+	s.sender.EXPECT().
+		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "Что-то пошло не так, попробуйте позже."}).
+		Return(&models.Message{}, nil)
+
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "кофе 350"))
+
+	s.Contains(s.logs.String(), `"level":"ERROR"`)
+	s.Contains(s.logs.String(), `"user_id":123`)
+	s.NotContains(s.logs.String(), "кофе 350")
+}
+
 func (s *Suite) TestHandleUpdate_SendError() {
 	ctx := context.Background()
 
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), gomock.Any()).
 		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return("ok", nil)
 	s.sender.EXPECT().
 		SendMessage(gomock.Any(), gomock.Any()).
 		Return(nil, errors.New("forbidden"))
@@ -161,7 +206,10 @@ func (s *Suite) TestHandleUpdate_Panic() {
 
 	s.usecase.EXPECT().
 		RegisterMember(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(context.Context, entity.User) error {
+		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(context.Context, int64, string) (string, error) {
 			panic("boom")
 		})
 

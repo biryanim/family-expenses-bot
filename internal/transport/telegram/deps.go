@@ -14,6 +14,10 @@ type Usecase interface {
 	RegisterMember(ctx context.Context, u entity.User) error
 }
 
+type Agent interface {
+	HandleMessage(ctx context.Context, userID int64, text string) (string, error)
+}
+
 type Sender interface {
 	SendMessage(ctx context.Context, params *bot.SendMessageParams) (*models.Message, error)
 }

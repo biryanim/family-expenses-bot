@@ -9,10 +9,11 @@ const (
 
 type Handler struct {
 	usecase Usecase
+	agent   Agent
 	sender  Sender
 	logger  *slog.Logger
 }
 
-func New(u Usecase, s Sender, logger *slog.Logger) *Handler {
-	return &Handler{usecase: u, sender: s, logger: logger}
+func New(u Usecase, a Agent, s Sender, logger *slog.Logger) *Handler {
+	return &Handler{usecase: u, agent: a, sender: s, logger: logger}
 }

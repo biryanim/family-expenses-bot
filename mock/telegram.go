@@ -57,6 +57,45 @@ func (mr *MockTelegramUsecaseMockRecorder) RegisterMember(ctx, u any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterMember", reflect.TypeOf((*MockTelegramUsecase)(nil).RegisterMember), ctx, u)
 }
 
+// MockAgent is a mock of Agent interface.
+type MockAgent struct {
+	ctrl     *gomock.Controller
+	recorder *MockAgentMockRecorder
+	isgomock struct{}
+}
+
+// MockAgentMockRecorder is the mock recorder for MockAgent.
+type MockAgentMockRecorder struct {
+	mock *MockAgent
+}
+
+// NewMockAgent creates a new mock instance.
+func NewMockAgent(ctrl *gomock.Controller) *MockAgent {
+	mock := &MockAgent{ctrl: ctrl}
+	mock.recorder = &MockAgentMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAgent) EXPECT() *MockAgentMockRecorder {
+	return m.recorder
+}
+
+// HandleMessage mocks base method.
+func (m *MockAgent) HandleMessage(ctx context.Context, userID int64, text string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleMessage", ctx, userID, text)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HandleMessage indicates an expected call of HandleMessage.
+func (mr *MockAgentMockRecorder) HandleMessage(ctx, userID, text any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleMessage", reflect.TypeOf((*MockAgent)(nil).HandleMessage), ctx, userID, text)
+}
+
 // MockSender is a mock of Sender interface.
 type MockSender struct {
 	ctrl     *gomock.Controller

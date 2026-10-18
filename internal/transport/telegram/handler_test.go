@@ -25,6 +25,7 @@ type Suite struct {
 	ctrl *gomock.Controller
 
 	usecase *mock.MockTelegramUsecase
+	agent   *mock.MockAgent
 	sender  *mock.MockSender
 	logs    *bytes.Buffer
 	handler *telegram.Handler
@@ -33,9 +34,10 @@ type Suite struct {
 func (s *Suite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.usecase = mock.NewMockTelegramUsecase(s.ctrl)
+	s.agent = mock.NewMockAgent(s.ctrl)
 	s.sender = mock.NewMockSender(s.ctrl)
 	s.logs = &bytes.Buffer{}
-	s.handler = telegram.New(s.usecase, s.sender, slog.New(slog.NewJSONHandler(s.logs, nil)))
+	s.handler = telegram.New(s.usecase, s.agent, s.sender, slog.New(slog.NewJSONHandler(s.logs, nil)))
 }
 
 func (s *Suite) TearDownTest() {

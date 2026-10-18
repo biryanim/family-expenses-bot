@@ -9,4 +9,6 @@ var (
 	ErrInvalidCategory = errors.New("invalid category")
 	ErrInvalidDate     = errors.New("invalid date")
 	ErrEmptyCompletion = errors.New("llm response has no choices")
+	ErrAgentStepLimit  = errors.New("agent step limit exceeded")
+	ErrEmptyAgentReply = errors.New("agent reply is empty")
 )

@@ -18,6 +18,7 @@ type ExpenseRepository interface {
 	ListExpensesForUser(ctx context.Context, userID int64, f entity.ExpenseFilter) ([]entity.Expense, error)
 	UpdateExpenseForUser(ctx context.Context, userID int64, e entity.Expense) (entity.Expense, error)
 	DeleteExpenseForUser(ctx context.Context, userID, id int64) error
+	GetLastExpenseForUser(ctx context.Context, userID int64) (entity.Expense, error)
 
 	ListUsers(ctx context.Context) ([]entity.User, error)
 	UpsertUser(ctx context.Context, u entity.User) error

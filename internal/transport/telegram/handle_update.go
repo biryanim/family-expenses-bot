@@ -48,7 +48,13 @@ func (h *Handler) HandleUpdate(ctx context.Context, _ *bot.Bot, update *models.U
 		return
 	}
 
-	if _, err := h.sender.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: msg.Text}); err != nil {
+	reply, err := h.agent.HandleMessage(ctx, userID, msg.Text)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "agent handle message failed", slog.Int64("user_id", userID), slog.Any("error", err))
+		reply = replyFailure
+	}
+
+	if _, err := h.sender.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: reply}); err != nil {
 		h.logger.ErrorContext(ctx, "telegram send message failed",
 			slog.Int64("user_id", userID), slog.Int64("chat_id", chatID), slog.Any("error", err))
 	}

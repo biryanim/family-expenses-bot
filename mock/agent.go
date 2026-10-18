@@ -55,3 +55,56 @@ func (mr *MockLLMClientMockRecorder) CreateChatCompletion(ctx, messages, tools a
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateChatCompletion", reflect.TypeOf((*MockLLMClient)(nil).CreateChatCompletion), ctx, messages, tools)
 }
+
+// MockToolExecutor is a mock of ToolExecutor interface.
+type MockToolExecutor struct {
+	ctrl     *gomock.Controller
+	recorder *MockToolExecutorMockRecorder
+	isgomock struct{}
+}
+
+// MockToolExecutorMockRecorder is the mock recorder for MockToolExecutor.
+type MockToolExecutorMockRecorder struct {
+	mock *MockToolExecutor
+}
+
+// NewMockToolExecutor creates a new mock instance.
+func NewMockToolExecutor(ctrl *gomock.Controller) *MockToolExecutor {
+	mock := &MockToolExecutor{ctrl: ctrl}
+	mock.recorder = &MockToolExecutorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockToolExecutor) EXPECT() *MockToolExecutorMockRecorder {
+	return m.recorder
+}
+
+// Definition mocks base method.
+func (m *MockToolExecutor) Definition() agent.Tool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Definition")
+	ret0, _ := ret[0].(agent.Tool)
+	return ret0
+}
+
+// Definition indicates an expected call of Definition.
+func (mr *MockToolExecutorMockRecorder) Definition() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Definition", reflect.TypeOf((*MockToolExecutor)(nil).Definition))
+}
+
+// Execute mocks base method.
+func (m *MockToolExecutor) Execute(ctx context.Context, userID int64, arguments string) (any, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Execute", ctx, userID, arguments)
+	ret0, _ := ret[0].(any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Execute indicates an expected call of Execute.
+func (mr *MockToolExecutorMockRecorder) Execute(ctx, userID, arguments any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockToolExecutor)(nil).Execute), ctx, userID, arguments)
+}

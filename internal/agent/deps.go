@@ -6,3 +6,8 @@ import "context"
 type LLMClient interface {
 	CreateChatCompletion(ctx context.Context, messages []Message, tools []Tool) (Message, error)
 }
+
+type ToolExecutor interface {
+	Definition() Tool
+	Execute(ctx context.Context, userID int64, arguments string) (any, error)
+}

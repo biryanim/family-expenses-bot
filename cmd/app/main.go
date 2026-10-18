@@ -16,9 +16,12 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
+	"github.com/biryanim/family-expenses-bot/internal/agent"
+	"github.com/biryanim/family-expenses-bot/internal/agent/tools"
 	"github.com/biryanim/family-expenses-bot/internal/config"
 	"github.com/biryanim/family-expenses-bot/internal/database/postgres"
 	"github.com/biryanim/family-expenses-bot/internal/database/repository"
+	"github.com/biryanim/family-expenses-bot/internal/llm"
 	httpapi "github.com/biryanim/family-expenses-bot/internal/transport/http"
 	"github.com/biryanim/family-expenses-bot/internal/transport/telegram"
 	"github.com/biryanim/family-expenses-bot/internal/usecase"
@@ -53,6 +56,13 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	defer pool.Close()
 
 	uc := usecase.New(repository.New(pool))
+	expenseAgent := agent.New(llm.New(cfg.LLM),
+		tools.NewAddExpense(uc),
+		tools.NewListExpenses(uc),
+		tools.NewGetLastExpense(uc),
+		tools.NewUpdateExpense(uc),
+		tools.NewDeleteExpense(uc),
+	)
 
 	b, err := bot.New(cfg.Telegram.Token,
 		bot.WithErrorsHandler(func(err error) {
@@ -63,7 +73,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("bot.New: %w", err)
 	}
-	b.RegisterHandlerMatchFunc(func(*models.Update) bool { return true }, telegram.New(uc, b, logger).HandleUpdate)
+	b.RegisterHandlerMatchFunc(func(*models.Update) bool { return true }, telegram.New(uc, expenseAgent, b, logger).HandleUpdate)
 
 	srv := &http.Server{
 		Handler:           httpapi.NewRouter(httpapi.New(uc, logger), cfg.HTTP.AllowedOrigins),
@@ -89,7 +99,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 		close(botDone)
 	}()
 	logger.Info("telegram bot started")
-	logger.Info("app started", slog.Any("config", cfg))
+	logger.Info("app started", slog.Any("config", cfg), slog.String("timezone", time.Local.String()))
 
 	select {
 	case err := <-serveErr:
