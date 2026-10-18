@@ -1,4 +1,3 @@
-// Command app runs the family expenses service: REST API and Telegram bot in one process.
 package main
 
 import (
@@ -10,12 +9,12 @@ import (
 	"syscall"
 
 	"github.com/biryanim/family-expenses-bot/internal/config"
+	"github.com/biryanim/family-expenses-bot/internal/repository"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		// The logger is not configured yet, so report straight to stderr.
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -23,17 +22,23 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.Log.Level}))
 	slog.SetDefault(logger)
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	if err := run(ctx, cfg, logger); err != nil {
-		logger.Error("app stopped with error", slog.Any("error", err))
+	if err := run(cfg, logger); err != nil {
+		logger.Error("app failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
 
-// run starts the application components and blocks until ctx is cancelled.
-func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+func run(cfg config.Config, logger *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := repository.NewPool(ctx, cfg.DB.DSN)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	logger.Info("database connected")
+
 	logger.Info("app started", slog.Any("config", cfg))
 
 	<-ctx.Done()

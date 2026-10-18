@@ -13,7 +13,7 @@ func validEnv() map[string]string {
 		envLLMBaseURL:       "https://llm.example.com/v1",
 		envLLMAPIKey:        "secret-llm-key",
 		envLLMModel:         "test-model",
-		envDatabaseURL:      "postgres://user:secret-db-pass@db:5432/expenses",
+		envDatabaseDSN:      "postgres://user:secret-db-pass@db:5432/expenses",
 	}
 }
 
@@ -23,8 +23,7 @@ func getenvFrom(env map[string]string) func(string) string {
 
 func TestLoad(t *testing.T) {
 	tests := []struct {
-		name string
-		// patch is applied on top of validEnv; an empty value unsets the variable.
+		name    string
 		patch   map[string]string
 		wantErr []string
 		check   func(t *testing.T, cfg Config)
@@ -39,7 +38,7 @@ func TestLoad(t *testing.T) {
 				want := Config{
 					Telegram: Telegram{Token: "secret-bot-token"},
 					LLM:      LLM{BaseURL: "https://llm.example.com/v1", APIKey: "secret-llm-key", Model: "test-model"},
-					DB:       DB{URL: "postgres://user:secret-db-pass@db:5432/expenses"},
+					DB:       DB{DSN: "postgres://user:secret-db-pass@db:5432/expenses"},
 					HTTP:     HTTP{Port: 9090},
 					Log:      Log{Level: slog.LevelDebug},
 				}
@@ -66,8 +65,8 @@ func TestLoad(t *testing.T) {
 		},
 		{
 			name:    "several required variables missing",
-			patch:   map[string]string{envLLMAPIKey: "", envDatabaseURL: ""},
-			wantErr: []string{envLLMAPIKey, envDatabaseURL},
+			patch:   map[string]string{envLLMAPIKey: "", envDatabaseDSN: ""},
+			wantErr: []string{envLLMAPIKey, envDatabaseDSN},
 		},
 		{
 			name:    "whitespace-only value is treated as missing",

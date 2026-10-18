@@ -9,8 +9,9 @@
 ## Стек
 - Go (версия из `go.mod`), один бинарь: REST API и бот в одном процессе.
 - HTTP: `github.com/go-chi/chi/v5`.
+- REST API spec-first: контракт в `api/openapi.yaml` (OpenAPI 3.0), код сервера и модели генерируются `oapi-codegen` (strict server под chi). TS-типы фронтенда генерируются из той же спецификации через `openapi-typescript`.
 - БД: PostgreSQL, драйвер `github.com/jackc/pgx/v5`, SQL пишется вручную (без ORM).
-- Миграции: `github.com/pressly/goose/v3`, SQL-файлы в `migrations/`, применяются при старте.
+- Миграции: goose CLI (`github.com/pressly/goose/v3`), SQL-файлы в `migrations/`. Приложение их не применяет: в compose это делает сервис `migrate` до старта `app`, локально — `make migrate-*`.
 - Telegram: `github.com/go-telegram/bot`, long polling.
 - LLM: OpenAI-совместимый Chat Completions API с tool calling, свой тонкий HTTP-клиент. `base_url`, `api_key`, `model` задаются в конфиге.
 - Фронтенд: React + Vite + TypeScript, TanStack Query. В compose отдаётся через nginx.
@@ -40,6 +41,10 @@ web/                       фронтенд
 - Интерфейсы объявляются на стороне потребителя и только там, где нужны подмена или тесты (репозиторий, LLM-клиент, часы).
 - Бизнес-правила (валидация суммы и категории, «последняя трата») живут в `usecase` и общие для REST и бота.
 
+## Изменение API
+- Порядок всегда такой: правка `api/openapi.yaml` → `go generate ./...` → код. Не наоборот.
+- Сгенерированные файлы (`*.gen.go`, сгенерированные TS-типы) руками не правятся и коммитятся в репозиторий.
+
 ## Доменные правила
 - Категории фиксированные: еда, транспорт, жильё, развлечения, здоровье, покупки, другое. Нераспознанная категория → «другое».
 - Сумма хранится как `int64` в копейках. Никаких float для денег.
@@ -64,10 +69,12 @@ web/                       фронтенд
 - LLM в тестах подменяется моком, реальные запросы к провайдеру в тестах не делаются.
 
 ## Команды
+- Генерация: `go generate ./...`
 - Сборка: `go build ./...`
 - Тесты: `go test ./...`
 - Проверка: `go vet ./...`
 - Запуск всего: `docker compose up --build`
+- Миграции: `make migrate-up`, `make migrate-down`, `make migrate-reset`, `make migrate-status`, `make migrate-create name=<name>`
 
 ## OpenSpec
 Работа ведётся через OpenSpec: изменения в `openspec/changes/`, актуальные спецификации в `openspec/specs/`. Команды `/opsx:propose`, `/opsx:apply`, `/opsx:archive`. Артефакты OpenSpec пишутся на русском.

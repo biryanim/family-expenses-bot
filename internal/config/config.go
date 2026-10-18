@@ -1,4 +1,3 @@
-// Package config loads application configuration from environment variables.
 package config
 
 import (
@@ -15,14 +14,13 @@ const (
 	envLLMBaseURL       = "LLM_BASE_URL"
 	envLLMAPIKey        = "LLM_API_KEY"
 	envLLMModel         = "LLM_MODEL"
-	envDatabaseURL      = "DATABASE_URL"
+	envDatabaseDSN      = "DATABASE_DSN"
 	envHTTPPort         = "HTTP_PORT"
 	envLogLevel         = "LOG_LEVEL"
 
 	defaultHTTPPort = 8080
 )
 
-// Config is the full application configuration.
 type Config struct {
 	Telegram Telegram
 	LLM      LLM
@@ -31,34 +29,28 @@ type Config struct {
 	Log      Log
 }
 
-// Telegram holds Telegram bot settings.
 type Telegram struct {
 	Token string
 }
 
-// LLM holds settings for the OpenAI-compatible Chat Completions API.
 type LLM struct {
 	BaseURL string
 	APIKey  string
 	Model   string
 }
 
-// DB holds PostgreSQL settings.
 type DB struct {
-	URL string
+	DSN string
 }
 
-// HTTP holds REST API server settings.
 type HTTP struct {
 	Port int
 }
 
-// Log holds logging settings.
 type Log struct {
 	Level slog.Level
 }
 
-// Load reads the configuration from the process environment.
 func Load() (Config, error) {
 	return load(os.Getenv)
 }
@@ -82,7 +74,7 @@ func load(getenv func(string) string) (Config, error) {
 	cfg.LLM.BaseURL = required(envLLMBaseURL)
 	cfg.LLM.APIKey = required(envLLMAPIKey)
 	cfg.LLM.Model = required(envLLMModel)
-	cfg.DB.URL = required(envDatabaseURL)
+	cfg.DB.DSN = required(envDatabaseDSN)
 
 	if len(missing) > 0 {
 		errs = append(errs, fmt.Errorf("missing required env: %s", strings.Join(missing, ", ")))
@@ -132,8 +124,6 @@ func parseLevel(raw string) (slog.Level, error) {
 	}
 }
 
-// LogValue implements slog.LogValuer and exposes only non-secret fields,
-// so logging the whole config never leaks tokens or credentials.
 func (c Config) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.Int("http_port", c.HTTP.Port),
