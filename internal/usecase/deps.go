@@ -6,6 +6,7 @@ import (
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
+//go:generate go tool mockgen -source=./deps.go -destination ../../mock/usecase.go -package mock
 type ExpenseRepository interface {
 	CreateExpense(ctx context.Context, e entity.Expense) (entity.Expense, error)
 	GetExpense(ctx context.Context, id int64) (entity.Expense, error)
@@ -18,5 +19,5 @@ type ExpenseRepository interface {
 	UpdateExpenseForUser(ctx context.Context, userID int64, e entity.Expense) (entity.Expense, error)
 	DeleteExpenseForUser(ctx context.Context, userID, id int64) error
 
-	ListUserIDs(ctx context.Context) ([]int64, error)
+	ListUsers(ctx context.Context) ([]entity.User, error)
 }

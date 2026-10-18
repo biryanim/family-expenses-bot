@@ -17,8 +17,10 @@ const (
 	envDatabaseDSN      = "DATABASE_DSN"
 	envHTTPPort         = "HTTP_PORT"
 	envLogLevel         = "LOG_LEVEL"
+	envCORSOrigins      = "CORS_ALLOWED_ORIGINS"
 
-	defaultHTTPPort = 8080
+	defaultHTTPPort    = 8080
+	defaultCORSOrigins = "http://localhost:5173"
 )
 
 type Config struct {
@@ -44,7 +46,8 @@ type DB struct {
 }
 
 type HTTP struct {
-	Port int
+	Port           int
+	AllowedOrigins []string
 }
 
 type Log struct {
@@ -85,6 +88,7 @@ func load(getenv func(string) string) (Config, error) {
 		errs = append(errs, err)
 	}
 	cfg.HTTP.Port = port
+	cfg.HTTP.AllowedOrigins = parseOrigins(getenv(envCORSOrigins))
 
 	level, err := parseLevel(strings.TrimSpace(getenv(envLogLevel)))
 	if err != nil {
@@ -109,6 +113,19 @@ func parsePort(raw string) (int, error) {
 	return port, nil
 }
 
+func parseOrigins(raw string) []string {
+	var origins []string
+	for _, origin := range strings.Split(raw, ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	if len(origins) == 0 {
+		return []string{defaultCORSOrigins}
+	}
+	return origins
+}
+
 func parseLevel(raw string) (slog.Level, error) {
 	switch strings.ToLower(raw) {
 	case "", "info":
@@ -130,5 +147,6 @@ func (c Config) LogValue() slog.Value {
 		slog.String("log_level", c.Log.Level.String()),
 		slog.String("llm_base_url", c.LLM.BaseURL),
 		slog.String("llm_model", c.LLM.Model),
+		slog.Any("cors_allowed_origins", c.HTTP.AllowedOrigins),
 	)
 }

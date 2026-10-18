@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -31,18 +32,19 @@ func TestLoad(t *testing.T) {
 		{
 			name: "all values set",
 			patch: map[string]string{
-				envHTTPPort: "9090",
-				envLogLevel: "debug",
+				envHTTPPort:    "9090",
+				envLogLevel:    "debug",
+				envCORSOrigins: "https://panel.example.com",
 			},
 			check: func(t *testing.T, cfg Config) {
 				want := Config{
 					Telegram: Telegram{Token: "secret-bot-token"},
 					LLM:      LLM{BaseURL: "https://llm.example.com/v1", APIKey: "secret-llm-key", Model: "test-model"},
 					DB:       DB{DSN: "postgres://user:secret-db-pass@db:5432/expenses"},
-					HTTP:     HTTP{Port: 9090},
+					HTTP:     HTTP{Port: 9090, AllowedOrigins: []string{"https://panel.example.com"}},
 					Log:      Log{Level: slog.LevelDebug},
 				}
-				if cfg != want {
+				if !reflect.DeepEqual(cfg, want) {
 					t.Errorf("got %+v, want %+v", cfg, want)
 				}
 			},
@@ -55,6 +57,28 @@ func TestLoad(t *testing.T) {
 				}
 				if cfg.Log.Level != slog.LevelInfo {
 					t.Errorf("level = %v, want info", cfg.Log.Level)
+				}
+				if want := []string{"http://localhost:5173"}; !reflect.DeepEqual(cfg.HTTP.AllowedOrigins, want) {
+					t.Errorf("allowed origins = %v, want %v", cfg.HTTP.AllowedOrigins, want)
+				}
+			},
+		},
+		{
+			name:  "blank cors origins fall back to default",
+			patch: map[string]string{envCORSOrigins: " , "},
+			check: func(t *testing.T, cfg Config) {
+				if want := []string{"http://localhost:5173"}; !reflect.DeepEqual(cfg.HTTP.AllowedOrigins, want) {
+					t.Errorf("allowed origins = %v, want %v", cfg.HTTP.AllowedOrigins, want)
+				}
+			},
+		},
+		{
+			name:  "several cors origins with spaces and empty items",
+			patch: map[string]string{envCORSOrigins: "http://localhost:5173, http://192.168.1.10:3000,,"},
+			check: func(t *testing.T, cfg Config) {
+				want := []string{"http://localhost:5173", "http://192.168.1.10:3000"}
+				if !reflect.DeepEqual(cfg.HTTP.AllowedOrigins, want) {
+					t.Errorf("allowed origins = %v, want %v", cfg.HTTP.AllowedOrigins, want)
 				}
 			},
 		},
@@ -189,7 +213,7 @@ func TestLogValueHidesSecrets(t *testing.T) {
 			t.Errorf("log output leaks secret %q: %s", secret, out)
 		}
 	}
-	for _, visible := range []string{"https://llm.example.com/v1", "test-model", "8080"} {
+	for _, visible := range []string{"https://llm.example.com/v1", "test-model", "8080", "http://localhost:5173"} {
 		if !strings.Contains(out, visible) {
 			t.Errorf("log output lacks %q: %s", visible, out)
 		}

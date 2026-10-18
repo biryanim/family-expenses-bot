@@ -305,6 +305,7 @@ components:
         - invalid_request
         - invalid_amount
         - invalid_category
+        - invalid_date
         - unknown_member
         - not_found
         - internal

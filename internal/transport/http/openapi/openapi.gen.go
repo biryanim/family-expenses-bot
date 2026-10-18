@@ -54,6 +54,7 @@ const (
 	ErrorCodeInternal        ErrorCode = "internal"
 	ErrorCodeInvalidAmount   ErrorCode = "invalid_amount"
 	ErrorCodeInvalidCategory ErrorCode = "invalid_category"
+	ErrorCodeInvalidDate     ErrorCode = "invalid_date"
 	ErrorCodeInvalidRequest  ErrorCode = "invalid_request"
 	ErrorCodeNotFound        ErrorCode = "not_found"
 	ErrorCodeUnknownMember   ErrorCode = "unknown_member"
@@ -67,6 +68,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeInvalidAmount:
 		return true
 	case ErrorCodeInvalidCategory:
+		return true
+	case ErrorCodeInvalidDate:
 		return true
 	case ErrorCodeInvalidRequest:
 		return true
