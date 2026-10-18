@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 	envLLMBaseURL       = "LLM_BASE_URL"
 	envLLMAPIKey        = "LLM_API_KEY"
 	envLLMModel         = "LLM_MODEL"
+	envLLMTimeout       = "LLM_TIMEOUT"
 	envDatabaseDSN      = "DATABASE_DSN"
 	envHTTPPort         = "HTTP_PORT"
 	envLogLevel         = "LOG_LEVEL"
@@ -21,6 +23,7 @@ const (
 
 	defaultHTTPPort    = 8080
 	defaultCORSOrigins = "http://localhost:5173"
+	defaultLLMTimeout  = 30 * time.Second
 )
 
 type Config struct {
@@ -39,6 +42,7 @@ type LLM struct {
 	BaseURL string
 	APIKey  string
 	Model   string
+	Timeout time.Duration
 }
 
 type DB struct {
@@ -90,6 +94,12 @@ func load(getenv func(string) string) (Config, error) {
 	cfg.HTTP.Port = port
 	cfg.HTTP.AllowedOrigins = parseOrigins(getenv(envCORSOrigins))
 
+	timeout, err := parseTimeout(strings.TrimSpace(getenv(envLLMTimeout)))
+	if err != nil {
+		errs = append(errs, err)
+	}
+	cfg.LLM.Timeout = timeout
+
 	level, err := parseLevel(strings.TrimSpace(getenv(envLogLevel)))
 	if err != nil {
 		errs = append(errs, err)
@@ -126,6 +136,17 @@ func parseOrigins(raw string) []string {
 	return origins
 }
 
+func parseTimeout(raw string) (time.Duration, error) {
+	if raw == "" {
+		return defaultLLMTimeout, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("%s: invalid value %q: must be a positive duration like 30s", envLLMTimeout, raw)
+	}
+	return d, nil
+}
+
 func parseLevel(raw string) (slog.Level, error) {
 	switch strings.ToLower(raw) {
 	case "", "info":
@@ -147,6 +168,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("log_level", c.Log.Level.String()),
 		slog.String("llm_base_url", c.LLM.BaseURL),
 		slog.String("llm_model", c.LLM.Model),
+		slog.String("llm_timeout", c.LLM.Timeout.String()),
 		slog.Any("cors_allowed_origins", c.HTTP.AllowedOrigins),
 	)
 }

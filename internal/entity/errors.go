@@ -8,4 +8,5 @@ var (
 	ErrInvalidAmount   = errors.New("invalid amount")
 	ErrInvalidCategory = errors.New("invalid category")
 	ErrInvalidDate     = errors.New("invalid date")
+	ErrEmptyCompletion = errors.New("llm response has no choices")
 )

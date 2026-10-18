@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func validEnv() map[string]string {
@@ -35,11 +36,12 @@ func TestLoad(t *testing.T) {
 				envHTTPPort:    "9090",
 				envLogLevel:    "debug",
 				envCORSOrigins: "https://panel.example.com",
+				envLLMTimeout:  "45s",
 			},
 			check: func(t *testing.T, cfg Config) {
 				want := Config{
 					Telegram: Telegram{Token: "secret-bot-token"},
-					LLM:      LLM{BaseURL: "https://llm.example.com/v1", APIKey: "secret-llm-key", Model: "test-model"},
+					LLM:      LLM{BaseURL: "https://llm.example.com/v1", APIKey: "secret-llm-key", Model: "test-model", Timeout: 45 * time.Second},
 					DB:       DB{DSN: "postgres://user:secret-db-pass@db:5432/expenses"},
 					HTTP:     HTTP{Port: 9090, AllowedOrigins: []string{"https://panel.example.com"}},
 					Log:      Log{Level: slog.LevelDebug},
@@ -60,6 +62,9 @@ func TestLoad(t *testing.T) {
 				}
 				if want := []string{"http://localhost:5173"}; !reflect.DeepEqual(cfg.HTTP.AllowedOrigins, want) {
 					t.Errorf("allowed origins = %v, want %v", cfg.HTTP.AllowedOrigins, want)
+				}
+				if cfg.LLM.Timeout != 30*time.Second {
+					t.Errorf("llm timeout = %v, want 30s", cfg.LLM.Timeout)
 				}
 			},
 		},
@@ -118,6 +123,26 @@ func TestLoad(t *testing.T) {
 			wantErr: []string{envLogLevel, `"verbose"`},
 		},
 		{
+			name:    "llm timeout without unit",
+			patch:   map[string]string{envLLMTimeout: "30"},
+			wantErr: []string{envLLMTimeout, `"30"`},
+		},
+		{
+			name:    "non-duration llm timeout",
+			patch:   map[string]string{envLLMTimeout: "abc"},
+			wantErr: []string{envLLMTimeout, `"abc"`},
+		},
+		{
+			name:    "zero llm timeout",
+			patch:   map[string]string{envLLMTimeout: "0s"},
+			wantErr: []string{envLLMTimeout, `"0s"`},
+		},
+		{
+			name:    "negative llm timeout",
+			patch:   map[string]string{envLLMTimeout: "-5s"},
+			wantErr: []string{envLLMTimeout, `"-5s"`},
+		},
+		{
 			name:  "log level is case-insensitive",
 			patch: map[string]string{envLogLevel: "WARN"},
 			check: func(t *testing.T, cfg Config) {
@@ -173,6 +198,7 @@ func TestLoadReadsProcessEnv(t *testing.T) {
 	}
 	t.Setenv(envHTTPPort, "")
 	t.Setenv(envLogLevel, "")
+	t.Setenv(envLLMTimeout, "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -213,7 +239,7 @@ func TestLogValueHidesSecrets(t *testing.T) {
 			t.Errorf("log output leaks secret %q: %s", secret, out)
 		}
 	}
-	for _, visible := range []string{"https://llm.example.com/v1", "test-model", "8080", "http://localhost:5173"} {
+	for _, visible := range []string{"https://llm.example.com/v1", "test-model", "8080", "http://localhost:5173", `"llm_timeout":"30s"`} {
 		if !strings.Contains(out, visible) {
 			t.Errorf("log output lacks %q: %s", visible, out)
 		}

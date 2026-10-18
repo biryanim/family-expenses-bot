@@ -3,7 +3,7 @@ GOLANGCI_LINT ?= golangci-lint
 GOOSE_VERSION ?= v3.29.0
 
 
-.PHONY: help build test vet lint lint-fix fmt tidy check generate run up down logs lint-install migrate-up migrate-down migrate-reset migrate-status migrate-create
+.PHONY: help build test vet lint lint-fix fmt tidy check generate run up down logs lint-install llm-check migrate-up migrate-down migrate-reset migrate-status migrate-create
 
 build:
 	go build ./...
@@ -25,6 +25,10 @@ generate:
 run:
 	@test -f .env || (echo ".env not found: cp .env.example .env" && exit 1)
 	set -a && . ./.env && set +a && go run ./cmd/app
+
+llm-check:
+	@test -f .env || (echo ".env not found: cp .env.example .env" && exit 1)
+	set -a && . ./.env && set +a && go run ./cmd/llmcheck
 
 up:
 	docker compose up --build

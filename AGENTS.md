@@ -13,7 +13,7 @@
 - БД: PostgreSQL, драйвер `github.com/jackc/pgx/v5`, SQL пишется вручную (без ORM).
 - Миграции: goose CLI (`github.com/pressly/goose/v3`), SQL-файлы в `migrations/`. Приложение их не применяет: в compose это делает сервис `migrate` до старта `app`, локально — `make migrate-*`.
 - Telegram: `github.com/go-telegram/bot`, long polling.
-- LLM: OpenAI-совместимый Chat Completions API с tool calling, свой тонкий HTTP-клиент. `base_url`, `api_key`, `model` задаются в конфиге.
+- LLM: OpenAI-совместимый Chat Completions API с tool calling через официальный SDK `github.com/openai/openai-go/v3`. `base_url`, `api_key`, `model` задаются в конфиге. Ретраи — встроенные в SDK, свои ретраи и circuit breaker не используются; время ожидания ограничивается через `context`.
 - Фронтенд: React + Vite + TypeScript, TanStack Query. В compose отдаётся через nginx.
 - Запуск: `docker compose up`.
 
@@ -32,7 +32,7 @@ internal/
   transport/http/openapi/  код, сгенерированный oapi-codegen из api/openapi.yaml, и конфиг генератора
   transport/telegram/      обработчик сообщений бота
   agent/                   цикл ИИ-агента и инструменты
-  llm/                     клиент LLM
+  llm/                     клиент LLM на openai-go (реализация; интерфейс объявлен в agent/deps.go)
   config/                  конфиг из переменных окружения
 web/                       фронтенд
 mock/                      сгенерированные gomock-моки (go generate)
