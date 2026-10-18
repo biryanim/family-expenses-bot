@@ -3,4 +3,318 @@ info:
   title: Family Expenses API
   version: 0.1.0
   description: REST API for the family expenses web panel.
-paths: {}
+servers:
+  - url: /api
+tags:
+  - name: expenses
+  - name: members
+paths:
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List expenses of all family members
+      description: >-
+        Filters are optional and combined with AND. Results are ordered from the
+        newest spent_at to the oldest.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          description: Telegram ID of the family member.
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          required: false
+          description: Start of the spent_at period, inclusive.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: End of the spent_at period, exclusive.
+          schema:
+            type: string
+            format: date-time
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Category'
+      responses:
+        '200':
+          description: Expenses matching the filters; an empty array if none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Create an expense for a family member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseCreate'
+      responses:
+        '201':
+          description: The created expense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /expenses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ExpenseID'
+    get:
+      operationId: getExpense
+      tags: [expenses]
+      summary: Get an expense
+      responses:
+        '200':
+          description: The expense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updateExpense
+      tags: [expenses]
+      summary: Replace the editable fields of an expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseUpdate'
+      responses:
+        '200':
+          description: The updated expense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete an expense
+      responses:
+        '204':
+          description: The expense was deleted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List family members
+      description: >-
+        All family members, including those without expenses, ordered by
+        Telegram ID ascending.
+      responses:
+        '200':
+          description: Family members; an empty array if none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Member'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    ExpenseID:
+      name: id
+      in: path
+      required: true
+      description: Expense ID.
+      schema:
+        type: integer
+        format: int64
+  responses:
+    BadRequest:
+      description: The request does not match the contract or violates a domain rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The expense does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error; details are not disclosed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Category:
+      type: string
+      description: >-
+        Expense category: food (еда), transport (транспорт), housing (жильё),
+        entertainment (развлечения), health (здоровье), shopping (покупки),
+        other (другое).
+      enum:
+        - food
+        - transport
+        - housing
+        - entertainment
+        - health
+        - shopping
+        - other
+    Expense:
+      type: object
+      required:
+        - id
+        - user_id
+        - amount
+        - category
+        - spent_at
+        - comment
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+          description: Telegram ID of the family member.
+        amount:
+          type: integer
+          format: int64
+          description: Amount in kopecks.
+        category:
+          $ref: '#/components/schemas/Category'
+        spent_at:
+          type: string
+          format: date-time
+        comment:
+          type: string
+          description: Empty string if there is no comment.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null if the expense has never been updated.
+    ExpenseCreate:
+      type: object
+      required:
+        - user_id
+        - amount
+        - category
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          description: Telegram ID of an existing family member.
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Amount in kopecks.
+        category:
+          $ref: '#/components/schemas/Category'
+        spent_at:
+          type: string
+          format: date-time
+          description: Defaults to the current moment.
+        comment:
+          type: string
+    ExpenseUpdate:
+      type: object
+      required:
+        - amount
+        - category
+        - spent_at
+      properties:
+        amount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Amount in kopecks.
+        category:
+          $ref: '#/components/schemas/Category'
+        spent_at:
+          type: string
+          format: date-time
+        comment:
+          type: string
+          description: Becomes empty if omitted.
+    Member:
+      type: object
+      required:
+        - telegram_id
+        - username
+        - first_name
+        - last_name
+      properties:
+        telegram_id:
+          type: integer
+          format: int64
+        username:
+          type: string
+          description: Empty string if the Telegram user has no username.
+        first_name:
+          type: string
+        last_name:
+          type: string
+          description: Empty string if the Telegram user has no last name.
+    ErrorCode:
+      type: string
+      enum:
+        - invalid_request
+        - invalid_amount
+        - invalid_category
+        - unknown_member
+        - not_found
+        - internal
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string

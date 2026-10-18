@@ -29,6 +29,7 @@ internal/
   database/postgres/       подключение к PostgreSQL
   database/repository/     доступ к данным (ручной SQL)
   transport/http/          хендлеры REST API
+  transport/http/openapi/  код, сгенерированный oapi-codegen из api/openapi.yaml, и конфиг генератора
   transport/telegram/      обработчик сообщений бота
   agent/                   цикл ИИ-агента и инструменты
   llm/                     клиент LLM
@@ -83,7 +84,7 @@ mock/                      сгенерированные gomock-моки (go ge
 - LLM в тестах подменяется моком, реальные запросы к провайдеру в тестах не делаются.
 
 ## Команды
-- Генерация: `go generate ./...` (в том числе моки: `//go:generate go tool mockgen` в `deps.go`, моки кладутся в корневой `mock/`)
+- Генерация: `make generate` или `go generate ./...` (OpenAPI-сервер и модели в `internal/transport/http/openapi`, а также моки: `//go:generate go tool mockgen` в `deps.go`, моки кладутся в корневой `mock/`)
 - Сборка: `go build ./...`
 - Тесты: `go test ./...`
 - Проверка: `go vet ./...`
