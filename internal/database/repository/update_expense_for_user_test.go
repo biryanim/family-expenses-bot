@@ -47,7 +47,7 @@ func (s *Suite) TestUpdateExpenseForUser_Success() {
 	s.Equal(&updatedAt, result.UpdatedAt)
 }
 
-func (s *Suite) TestUpdateExpenseForUser_6OTFOUND() {
+func (s *Suite) TestUpdateExpenseForUser_NotFound() {
 	ctx := context.Background()
 	input := testExpense()
 

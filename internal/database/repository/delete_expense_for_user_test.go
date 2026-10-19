@@ -23,7 +23,7 @@ func (s *Suite) TestDeleteExpenseForUser_Success() {
 	s.NoError(err)
 }
 
-func (s *Suite) TestDeleteExpenseForUser_2OTFOUND() {
+func (s *Suite) TestDeleteExpenseForUser_NotFound() {
 	ctx := context.Background()
 	id := int64(8)
 
