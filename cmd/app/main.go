@@ -17,6 +17,7 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"github.com/biryanim/family-expenses-bot/internal/agent"
+	"github.com/biryanim/family-expenses-bot/internal/agent/history"
 	"github.com/biryanim/family-expenses-bot/internal/agent/tools"
 	"github.com/biryanim/family-expenses-bot/internal/config"
 	"github.com/biryanim/family-expenses-bot/internal/database/postgres"
@@ -56,7 +57,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	defer pool.Close()
 
 	uc := usecase.New(repository.New(pool))
-	expenseAgent := agent.New(llm.New(cfg.LLM),
+	expenseAgent := agent.New(llm.New(cfg.LLM), history.New(),
 		tools.NewAddExpense(uc),
 		tools.NewListExpenses(uc),
 		tools.NewGetLastExpense(uc),

@@ -12,6 +12,7 @@ package mock
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	agent "github.com/biryanim/family-expenses-bot/internal/agent"
 	gomock "go.uber.org/mock/gomock"
@@ -107,4 +108,59 @@ func (m *MockToolExecutor) Execute(ctx context.Context, userID int64, arguments 
 func (mr *MockToolExecutorMockRecorder) Execute(ctx, userID, arguments any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Execute", reflect.TypeOf((*MockToolExecutor)(nil).Execute), ctx, userID, arguments)
+}
+
+// MockConversationStore is a mock of ConversationStore interface.
+type MockConversationStore struct {
+	ctrl     *gomock.Controller
+	recorder *MockConversationStoreMockRecorder
+	isgomock struct{}
+}
+
+// MockConversationStoreMockRecorder is the mock recorder for MockConversationStore.
+type MockConversationStoreMockRecorder struct {
+	mock *MockConversationStore
+}
+
+// NewMockConversationStore creates a new mock instance.
+func NewMockConversationStore(ctrl *gomock.Controller) *MockConversationStore {
+	mock := &MockConversationStore{ctrl: ctrl}
+	mock.recorder = &MockConversationStoreMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConversationStore) EXPECT() *MockConversationStoreMockRecorder {
+	return m.recorder
+}
+
+// AppendMessagesForUser mocks base method.
+func (m *MockConversationStore) AppendMessagesForUser(userID int64, now time.Time, messages ...agent.Message) {
+	m.ctrl.T.Helper()
+	varargs := []any{userID, now}
+	for _, a := range messages {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "AppendMessagesForUser", varargs...)
+}
+
+// AppendMessagesForUser indicates an expected call of AppendMessagesForUser.
+func (mr *MockConversationStoreMockRecorder) AppendMessagesForUser(userID, now any, messages ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{userID, now}, messages...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppendMessagesForUser", reflect.TypeOf((*MockConversationStore)(nil).AppendMessagesForUser), varargs...)
+}
+
+// ListMessagesForUser mocks base method.
+func (m *MockConversationStore) ListMessagesForUser(userID int64, now time.Time) []agent.Message {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListMessagesForUser", userID, now)
+	ret0, _ := ret[0].([]agent.Message)
+	return ret0
+}
+
+// ListMessagesForUser indicates an expected call of ListMessagesForUser.
+func (mr *MockConversationStoreMockRecorder) ListMessagesForUser(userID, now any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListMessagesForUser", reflect.TypeOf((*MockConversationStore)(nil).ListMessagesForUser), userID, now)
 }

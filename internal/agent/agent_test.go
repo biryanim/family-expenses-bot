@@ -8,6 +8,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/biryanim/family-expenses-bot/internal/agent"
+	"github.com/biryanim/family-expenses-bot/internal/agent/history"
 	"github.com/biryanim/family-expenses-bot/internal/agent/tools"
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 	"github.com/biryanim/family-expenses-bot/internal/usecase"
@@ -47,6 +48,24 @@ var (
 		Comment:   "секретный концерт",
 		CreatedAt: time.Date(2026, 9, 3, 12, 0, 0, 0, time.Local),
 	}
+	taxiOnOct15 = entity.Expense{
+		ID:        21,
+		UserID:    userA,
+		Amount:    50000,
+		Category:  entity.CategoryTransport,
+		SpentAt:   time.Date(2026, 10, 15, 0, 0, 0, 0, time.Local),
+		Comment:   "такси",
+		CreatedAt: time.Date(2026, 10, 15, 20, 0, 0, 0, time.Local),
+	}
+	taxiOnOct17 = entity.Expense{
+		ID:        22,
+		UserID:    userA,
+		Amount:    70000,
+		Category:  entity.CategoryTransport,
+		SpentAt:   time.Date(2026, 10, 17, 0, 0, 0, 0, time.Local),
+		Comment:   "такси",
+		CreatedAt: time.Date(2026, 10, 17, 21, 0, 0, 0, time.Local),
+	}
 )
 
 type Suite struct {
@@ -70,11 +89,11 @@ func (s *Suite) SetupTest() {
 	s.list = mock.NewMockToolExecutor(s.ctrl)
 	s.add.EXPECT().Definition().Return(addTool).AnyTimes()
 	s.list.EXPECT().Definition().Return(listTool).AnyTimes()
-	s.agent = agent.New(s.llm, s.add, s.list)
+	s.agent = agent.New(s.llm, history.New(), s.add, s.list)
 
 	s.repo = mock.NewMockExpenseRepository(s.ctrl)
 	uc := usecase.New(s.repo)
-	s.isolated = agent.New(s.llm,
+	s.isolated = agent.New(s.llm, history.New(),
 		tools.NewAddExpense(uc),
 		tools.NewListExpenses(uc),
 		tools.NewGetLastExpense(uc),

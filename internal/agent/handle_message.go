@@ -22,10 +22,10 @@ func (a *Agent) HandleMessage(ctx context.Context, userID int64, text string) (s
 		executors[definition.Name] = executor
 	}
 
-	messages := []Message{
-		{Role: RoleSystem, Content: fmt.Sprintf(systemPrompt, now.Format(time.DateOnly), weekdays[now.Weekday()])},
-		{Role: RoleUser, Content: text},
-	}
+	userMessage := Message{Role: RoleUser, Content: text}
+	messages := []Message{{Role: RoleSystem, Content: fmt.Sprintf(systemPrompt, now.Format(time.DateOnly), weekdays[now.Weekday()])}}
+	messages = append(messages, a.history.ListMessagesForUser(userID, now)...)
+	messages = append(messages, userMessage)
 
 	for range maxSteps {
 		reply, err := a.llm.CreateChatCompletion(ctx, messages, definitions)
@@ -38,6 +38,7 @@ func (a *Agent) HandleMessage(ctx context.Context, userID int64, text string) (s
 			if answer == "" {
 				return "", entity.ErrEmptyAgentReply
 			}
+			a.history.AppendMessagesForUser(userID, now, userMessage, Message{Role: RoleAssistant, Content: answer})
 			return answer, nil
 		}
 
