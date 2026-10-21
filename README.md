@@ -11,7 +11,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-В `.env` нужно заполнить `TELEGRAM_BOT_TOKEN`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` и пароль PostgreSQL в `POSTGRES_PASSWORD` и `DATABASE_DSN`. Подойдёт любой OpenAI-совместимый Chat Completions API с поддержкой tool calling. Миграции применяет сервис `migrate` до старта приложения. REST API слушает `HTTP_PORT` (по умолчанию 8080).
+В `.env` нужно заполнить `TELEGRAM_BOT_TOKEN`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` и пароль PostgreSQL в `POSTGRES_PASSWORD` и `DATABASE_DSN`. Подойдёт любой OpenAI-совместимый Chat Completions API с поддержкой tool calling. Миграции применяет сервис `migrate` до старта приложения. REST API слушает `HTTP_PORT` (по умолчанию 8080), веб-панель доступна на `http://localhost:3000` (порт `WEB_PORT`) и обращается к API через собственный `/api/`. Если пароль PostgreSQL содержит `@ : / ?` и подобные символы, в `DATABASE_DSN` его нужно URL-кодировать (или взять пароль попроще).
+
+Данные БД лежат в томе `pgdata` и переживают `docker compose down`. Чтобы стереть их, выполните `docker compose down -v`.
 
 Остальные команды (`make test`, `make lint`, `make migrate-*`) описаны в `Makefile`.
 
@@ -51,6 +53,6 @@ npm --prefix web run dev
 
 После правки `api/openapi.yaml` TypeScript-типы пересоздаются командой `make generate-web`.
 
-Образ панели: `docker build -t family-expenses-web web/`. Подключение в `docker compose` появится в задаче 14.
+Образ панели: `docker build -t family-expenses-web web/`. В `docker compose` панель подключена сервисом `web`.
 
 Даты и периоды в панели считаются в часовом поясе браузера, а «сегодня» и «вчера» в боте — в часовом поясе контейнера (`TZ`). Если пояса различаются, на границе суток день в фильтре и в боте может не совпасть.
