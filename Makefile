@@ -3,7 +3,7 @@ GOLANGCI_LINT ?= golangci-lint
 GOOSE_VERSION ?= v3.29.0
 
 
-.PHONY: help build test vet lint lint-fix fmt tidy check generate run up down logs lint-install llm-check migrate-up migrate-down migrate-reset migrate-status migrate-create
+.PHONY: help build test vet lint lint-fix fmt tidy check generate generate-web run up down logs lint-install llm-check migrate-up migrate-down migrate-reset migrate-status migrate-create
 
 build:
 	go build ./...
@@ -21,6 +21,9 @@ check: lint test
 
 generate:
 	go generate ./...
+
+generate-web:
+	npm --prefix web run generate:api
 
 run:
 	@test -f .env || (echo ".env not found: cp .env.example .env" && exit 1)

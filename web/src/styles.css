@@ -1,0 +1,91 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f6f7f9;
+  color: #1c1e21;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.expenses {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.expenses th,
+.expenses td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e3e5e8;
+  text-align: left;
+}
+
+.expenses .amount {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.status {
+  color: #5b6168;
+}
+
+.error,
+.field-error {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: #b3261e;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.actions button + button {
+  margin-left: 6px;
+}
+
+.expense-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+}
+
+.expense-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
