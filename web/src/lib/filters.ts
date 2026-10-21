@@ -1,11 +1,13 @@
 import { isValidDay, periodToRange } from './dates'
 import { isCategory, type Category } from './categories'
+import { pageSize, pageToOffset, parsePage } from './pagination'
 
 export type Filters = {
   member: string
   from: string
   to: string
   category: Category | ''
+  page: number
 }
 
 export type ExpenseQuery = {
@@ -13,11 +15,13 @@ export type ExpenseQuery = {
   from?: string
   to?: string
   category?: Category
+  limit: number
+  offset: number
 }
 
 export type QueryResult = { ok: true; query: ExpenseQuery } | { ok: false; error: string }
 
-export const emptyFilters: Filters = { member: '', from: '', to: '', category: '' }
+export const emptyFilters: Filters = { member: '', from: '', to: '', category: '', page: 1 }
 
 export function readFilters(search: string): Filters {
   const params = new URLSearchParams(search)
@@ -30,15 +34,20 @@ export function readFilters(search: string): Filters {
     from: isValidDay(from) ? from : '',
     to: isValidDay(to) ? to : '',
     category: isCategory(category) ? category : '',
+    page: parsePage(params.get('page') ?? ''),
   }
 }
 
 export function writeFilters(filters: Filters): void {
   const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(filters)) {
+  const { page, ...rest } = filters
+  for (const [key, value] of Object.entries(rest)) {
     if (value !== '') {
       params.set(key, value)
     }
+  }
+  if (page > 1) {
+    params.set('page', String(page))
   }
   const search = params.toString()
   history.replaceState(null, '', search === '' ? location.pathname : `?${search}`)
@@ -49,7 +58,7 @@ export function filtersToQuery(filters: Filters): QueryResult {
   if (!range.ok) {
     return range
   }
-  const query: ExpenseQuery = {}
+  const query: ExpenseQuery = { limit: pageSize, offset: pageToOffset(filters.page) }
   if (filters.member !== '') {
     query.user_id = Number(filters.member)
   }

@@ -3,6 +3,7 @@ import { ApiError, apiErrorFromException, apiErrorFromResponse } from './api-err
 import { client } from './client'
 import type { components } from './schema.gen'
 import type { ExpenseQuery } from '../lib/filters'
+import { readTotal } from '../lib/pagination'
 
 export function useMembers() {
   return useQuery({
@@ -30,7 +31,7 @@ export function useExpenses(params: ExpenseQuery, enabled: boolean) {
       if (data === undefined) {
         throw apiErrorFromResponse(response.status, error)
       }
-      return data
+      return { items: data, total: readTotal(response.headers) }
     },
   })
 }

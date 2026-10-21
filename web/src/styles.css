@@ -89,3 +89,10 @@ body {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"go.uber.org/mock/gomock"
 
@@ -34,7 +35,7 @@ func (s *Suite) TestNewRouter_CORSPreflightAllowed() {
 func (s *Suite) TestNewRouter_CORSAllowedOrigin() {
 	s.usecase.EXPECT().
 		ListExpenses(gomock.Any(), gomock.Any()).
-		Return([]entity.Expense{}, nil)
+		Return(entity.ExpensePage{}, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/expenses", nil)
 	req.Header.Set("Origin", allowedOrigin)
 	rec := httptest.NewRecorder()
@@ -48,7 +49,7 @@ func (s *Suite) TestNewRouter_CORSAllowedOrigin() {
 func (s *Suite) TestNewRouter_CORSForeignOrigin() {
 	s.usecase.EXPECT().
 		ListExpenses(gomock.Any(), gomock.Any()).
-		Return([]entity.Expense{}, nil)
+		Return(entity.ExpensePage{}, nil)
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/expenses", nil)
 	req.Header.Set("Origin", "https://evil.example")
 	rec := httptest.NewRecorder()
@@ -56,4 +57,26 @@ func (s *Suite) TestNewRouter_CORSForeignOrigin() {
 	s.router.ServeHTTP(rec, req)
 
 	s.Empty(rec.Header().Get("Access-Control-Allow-Origin"))
+}
+
+func (s *Suite) TestNewRouter_CORSExposesTotalCount() {
+	s.usecase.EXPECT().
+		ListExpenses(gomock.Any(), gomock.Any()).
+		Return(entity.ExpensePage{}, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/expenses", nil)
+	req.Header.Set("Origin", allowedOrigin)
+	rec := httptest.NewRecorder()
+
+	s.router.ServeHTTP(rec, req)
+
+	s.Contains(rec.Header().Get("Access-Control-Expose-Headers"), "X-Total-Count")
+}
+
+func (s *Suite) TestNewRouter_BodyTooLarge() {
+	body := `{"user_id":100,"amount":100,"category":"food","comment":"` + strings.Repeat("я", 3<<20) + `"}`
+
+	rec := s.serve(http.MethodPost, "/api/expenses", body)
+
+	s.Equal(http.StatusBadRequest, rec.Code)
+	s.Contains(rec.Body.String(), `"code":"invalid_request"`)
 }

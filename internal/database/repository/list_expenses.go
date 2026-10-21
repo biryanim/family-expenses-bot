@@ -3,13 +3,14 @@ package repository
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
-func (r *Repository) ListExpenses(ctx context.Context, f entity.ExpenseFilter) ([]entity.Expense, error) {
+func (r *Repository) ListExpenses(ctx context.Context, f entity.ExpenseFilter) (entity.ExpensePage, error) {
 	var conditions []string
 	var args []any
 	if f.UserID != nil {
@@ -29,31 +30,42 @@ func (r *Repository) ListExpenses(ctx context.Context, f entity.ExpenseFilter) (
 		conditions = append(conditions, "category = $"+strconv.Itoa(len(args)))
 	}
 
-	sql := "SELECT " + expenseColumns + " FROM expenses"
+	var where string
 	if len(conditions) > 0 {
-		sql += " WHERE " + strings.Join(conditions, " AND ")
+		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
-	sql += " ORDER BY spent_at DESC, id DESC"
 
-	rows, err := r.pool.Query(ctx, sql, args...)
+	pageArgs := append(slices.Clone(args), f.Limit, f.Offset)
+	sql := "SELECT " + expenseColumns + ", count(*) OVER (), (sum(amount) OVER ())::bigint FROM expenses" + where +
+		" ORDER BY spent_at DESC, id DESC LIMIT $" + strconv.Itoa(len(args)+1) + " OFFSET $" + strconv.Itoa(len(args)+2)
+
+	rows, err := r.pool.Query(ctx, sql, pageArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("r.pool.Query: %w", err)
+		return entity.ExpensePage{}, fmt.Errorf("r.pool.Query: %w", err)
 	}
 	defer rows.Close()
 
-	expenses := []entity.Expense{}
+	page := entity.ExpensePage{Items: []entity.Expense{}}
 	for rows.Next() {
 		var e entity.Expense
 		if err := rows.Scan(
 			&e.ID, &e.UserID, &e.Amount, &e.Category,
 			&e.SpentAt, &e.Comment, &e.CreatedAt, &e.UpdatedAt,
+			&page.Count, &page.Total,
 		); err != nil {
-			return nil, fmt.Errorf("rows.Scan: %w", err)
+			return entity.ExpensePage{}, fmt.Errorf("rows.Scan: %w", err)
 		}
-		expenses = append(expenses, e)
+		page.Items = append(page.Items, e)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows.Err: %w", err)
+		return entity.ExpensePage{}, fmt.Errorf("rows.Err: %w", err)
 	}
-	return expenses, nil
+
+	if len(page.Items) == 0 && f.Offset > 0 {
+		const aggregatesSQL = "SELECT count(*), COALESCE(sum(amount), 0)::bigint FROM expenses"
+		if err := r.pool.QueryRow(ctx, aggregatesSQL+where, args...).Scan(&page.Count, &page.Total); err != nil {
+			return entity.ExpensePage{}, fmt.Errorf("r.pool.QueryRow.Scan: %w", err)
+		}
+	}
+	return page, nil
 }

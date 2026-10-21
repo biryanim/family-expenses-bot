@@ -7,4 +7,6 @@ type ExpenseFilter struct {
 	From     time.Time
 	To       time.Time
 	Category Category
+	Limit    int
+	Offset   int
 }

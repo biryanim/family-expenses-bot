@@ -17,12 +17,13 @@ func (s *Suite) TestListExpenses_Success() {
 	updated.UpdatedAt = &updatedAt
 
 	s.usecase.EXPECT().
-		ListExpenses(gomock.Any(), entity.ExpenseFilter{}).
-		Return([]entity.Expense{updated, testExpense()}, nil)
+		ListExpenses(gomock.Any(), entity.ExpenseFilter{Limit: 100}).
+		Return(entity.ExpensePage{Items: []entity.Expense{updated, testExpense()}, Count: 250, Total: 70000}, nil)
 
 	rec := s.serve(http.MethodGet, "/api/expenses", "")
 
 	s.Equal(http.StatusOK, rec.Code)
+	s.Equal("250", rec.Header().Get("X-Total-Count"))
 	var body []openapi.Expense
 	s.Require().NoError(json.Unmarshal(rec.Body.Bytes(), &body))
 	s.Equal([]openapi.Expense{
@@ -34,11 +35,12 @@ func (s *Suite) TestListExpenses_Success() {
 func (s *Suite) TestListExpenses_Empty() {
 	s.usecase.EXPECT().
 		ListExpenses(gomock.Any(), gomock.Any()).
-		Return(nil, nil)
+		Return(entity.ExpensePage{}, nil)
 
 	rec := s.serve(http.MethodGet, "/api/expenses", "")
 
 	s.Equal(http.StatusOK, rec.Code)
+	s.Equal("0", rec.Header().Get("X-Total-Count"))
 	s.JSONEq(`[]`, rec.Body.String())
 }
 
@@ -49,21 +51,21 @@ func (s *Suite) TestListExpenses_Filters() {
 		query string
 		want  entity.ExpenseFilter
 	}{
-		{name: "none", query: "", want: entity.ExpenseFilter{}},
-		{name: "user", query: "?user_id=100", want: entity.ExpenseFilter{UserID: &user}},
-		{name: "from", query: "?from=2026-10-01T00:00:00Z", want: entity.ExpenseFilter{From: from}},
-		{name: "to", query: "?to=2026-10-08T00:00:00Z", want: entity.ExpenseFilter{To: to}},
-		{name: "category", query: "?category=food", want: entity.ExpenseFilter{Category: entity.CategoryFood}},
-		{name: "user and period", query: "?user_id=100&from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z", want: entity.ExpenseFilter{UserID: &user, From: from, To: to}},
-		{name: "user and category", query: "?user_id=100&category=transport", want: entity.ExpenseFilter{UserID: &user, Category: entity.CategoryTransport}},
-		{name: "period and category", query: "?from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z&category=health", want: entity.ExpenseFilter{From: from, To: to, Category: entity.CategoryHealth}},
-		{name: "all", query: "?user_id=100&from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z&category=food", want: entity.ExpenseFilter{UserID: &user, From: from, To: to, Category: entity.CategoryFood}},
+		{name: "none", query: "", want: entity.ExpenseFilter{Limit: 100}},
+		{name: "user", query: "?user_id=100", want: entity.ExpenseFilter{UserID: &user, Limit: 100}},
+		{name: "from", query: "?from=2026-10-01T00:00:00Z", want: entity.ExpenseFilter{From: from, Limit: 100}},
+		{name: "to", query: "?to=2026-10-08T00:00:00Z", want: entity.ExpenseFilter{To: to, Limit: 100}},
+		{name: "category", query: "?category=food", want: entity.ExpenseFilter{Category: entity.CategoryFood, Limit: 100}},
+		{name: "user and period", query: "?user_id=100&from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z", want: entity.ExpenseFilter{UserID: &user, From: from, To: to, Limit: 100}},
+		{name: "user and category", query: "?user_id=100&category=transport", want: entity.ExpenseFilter{UserID: &user, Category: entity.CategoryTransport, Limit: 100}},
+		{name: "period and category", query: "?from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z&category=health", want: entity.ExpenseFilter{From: from, To: to, Category: entity.CategoryHealth, Limit: 100}},
+		{name: "all", query: "?user_id=100&from=2026-10-01T00:00:00Z&to=2026-10-08T00:00:00Z&category=food", want: entity.ExpenseFilter{UserID: &user, From: from, To: to, Category: entity.CategoryFood, Limit: 100}},
 	}
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			s.usecase.EXPECT().
 				ListExpenses(gomock.Any(), tt.want).
-				Return([]entity.Expense{}, nil)
+				Return(entity.ExpensePage{}, nil)
 
 			rec := s.serve(http.MethodGet, "/api/expenses"+tt.query, "")
 
@@ -89,8 +91,8 @@ func (s *Suite) TestListExpenses_InvalidFrom() {
 
 func (s *Suite) TestListExpenses_InvalidCategory() {
 	s.usecase.EXPECT().
-		ListExpenses(gomock.Any(), entity.ExpenseFilter{Category: "travel"}).
-		Return(nil, entity.ErrInvalidCategory)
+		ListExpenses(gomock.Any(), entity.ExpenseFilter{Category: "travel", Limit: 100}).
+		Return(entity.ExpensePage{}, entity.ErrInvalidCategory)
 
 	rec := s.serve(http.MethodGet, "/api/expenses?category=travel", "")
 
@@ -100,8 +102,8 @@ func (s *Suite) TestListExpenses_InvalidCategory() {
 
 func (s *Suite) TestListExpenses_InvalidPeriod() {
 	s.usecase.EXPECT().
-		ListExpenses(gomock.Any(), entity.ExpenseFilter{From: to, To: from}).
-		Return(nil, entity.ErrInvalidDate)
+		ListExpenses(gomock.Any(), entity.ExpenseFilter{From: to, To: from, Limit: 100}).
+		Return(entity.ExpensePage{}, entity.ErrInvalidDate)
 
 	rec := s.serve(http.MethodGet, "/api/expenses?from=2026-10-08T00:00:00Z&to=2026-10-01T00:00:00Z", "")
 
@@ -112,11 +114,60 @@ func (s *Suite) TestListExpenses_InvalidPeriod() {
 func (s *Suite) TestListExpenses_InternalError() {
 	s.usecase.EXPECT().
 		ListExpenses(gomock.Any(), gomock.Any()).
-		Return(nil, errors.New("u.repo.ListExpenses: connection refused"))
+		Return(entity.ExpensePage{}, errors.New("u.repo.ListExpenses: connection refused"))
 
 	rec := s.serve(http.MethodGet, "/api/expenses", "")
 
 	s.Equal(http.StatusInternalServerError, rec.Code)
 	s.Contains(rec.Body.String(), `"code":"internal"`)
 	s.NotContains(rec.Body.String(), "connection refused")
+}
+
+func (s *Suite) TestListExpenses_Pagination() {
+	s.usecase.EXPECT().
+		ListExpenses(gomock.Any(), entity.ExpenseFilter{Limit: 100, Offset: 100}).
+		Return(entity.ExpensePage{Items: []entity.Expense{}, Count: 250}, nil)
+
+	rec := s.serve(http.MethodGet, "/api/expenses?limit=100&offset=100", "")
+
+	s.Equal(http.StatusOK, rec.Code)
+	s.Equal("250", rec.Header().Get("X-Total-Count"))
+}
+
+func (s *Suite) TestListExpenses_OffsetBeyondResults() {
+	s.usecase.EXPECT().
+		ListExpenses(gomock.Any(), entity.ExpenseFilter{Limit: 100, Offset: 100}).
+		Return(entity.ExpensePage{Items: []entity.Expense{}, Count: 50}, nil)
+
+	rec := s.serve(http.MethodGet, "/api/expenses?offset=100", "")
+
+	s.Equal(http.StatusOK, rec.Code)
+	s.Equal("50", rec.Header().Get("X-Total-Count"))
+	s.JSONEq(`[]`, rec.Body.String())
+}
+
+func (s *Suite) TestListExpenses_InvalidPagination() {
+	for name, query := range map[string]string{
+		"limit zero":      "?limit=0",
+		"limit over max":  "?limit=501",
+		"negative offset": "?offset=-1",
+	} {
+		s.Run(name, func() {
+			s.usecase.EXPECT().
+				ListExpenses(gomock.Any(), gomock.Any()).
+				Return(entity.ExpensePage{}, entity.ErrInvalidPagination)
+
+			rec := s.serve(http.MethodGet, "/api/expenses"+query, "")
+
+			s.Equal(http.StatusBadRequest, rec.Code)
+			s.Contains(rec.Body.String(), `"code":"invalid_pagination"`)
+		})
+	}
+}
+
+func (s *Suite) TestListExpenses_NonIntegerLimit() {
+	rec := s.serve(http.MethodGet, "/api/expenses?limit=abc", "")
+
+	s.Equal(http.StatusBadRequest, rec.Code)
+	s.Contains(rec.Body.String(), `"code":"invalid_request"`)
 }

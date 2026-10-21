@@ -4,9 +4,11 @@ import { ErrorMessage } from './components/ErrorMessage'
 import { ExpenseForm } from './components/ExpenseForm'
 import { ExpenseTable } from './components/ExpenseTable'
 import { Filters } from './components/Filters'
+import { Pagination } from './components/Pagination'
 import { categoryLabels } from './lib/categories'
 import { formatDateTime } from './lib/dates'
 import { formatAmount } from './lib/money'
+import { describePage, pageAfterDelete, pageSize } from './lib/pagination'
 import type { components } from './api/schema.gen'
 import { filtersToQuery, readFilters, writeFilters, type Filters as FiltersValue } from './lib/filters'
 
@@ -16,9 +18,13 @@ export function App() {
   const members = useMembers()
   const deleteExpense = useDeleteExpense()
   const queryResult = filtersToQuery(filters)
-  const expenses = useExpenses(queryResult.ok ? queryResult.query : {}, queryResult.ok)
+  const expenses = useExpenses(queryResult.ok ? queryResult.query : { limit: pageSize, offset: 0 }, queryResult.ok)
 
   function changeFilters(next: FiltersValue) {
+    changeFiltersAndPage({ ...next, page: 1 })
+  }
+
+  function changeFiltersAndPage(next: FiltersValue) {
     setFilters(next)
     writeFilters(next)
   }
@@ -26,7 +32,15 @@ export function App() {
   function confirmDelete(expense: components['schemas']['Expense']) {
     const text = `Удалить трату ${formatAmount(expense.amount)} (${categoryLabels[expense.category]}, ${formatDateTime(expense.spent_at)})?`
     if (window.confirm(text)) {
-      deleteExpense.mutate(expense.id)
+      const itemsOnPage = expenses.data?.items.length ?? 0
+      deleteExpense.mutate(expense.id, {
+        onSuccess: () => {
+          const page = pageAfterDelete(filters.page, itemsOnPage)
+          if (page !== filters.page) {
+            changeFiltersAndPage({ ...filters, page })
+          }
+        },
+      })
     }
   }
 
@@ -55,15 +69,30 @@ export function App() {
       {queryResult.ok && expenses.isError && (
         <ErrorMessage error={expenses.error} onRetry={() => void expenses.refetch()} />
       )}
-      {queryResult.ok && expenses.isSuccess && expenses.data.length === 0 && (
+      {queryResult.ok && expenses.isSuccess && expenses.data.items.length === 0 && filters.page === 1 && (
         <p className="status">Трат по выбранным фильтрам нет</p>
       )}
-      {queryResult.ok && expenses.isSuccess && expenses.data.length > 0 && (
+      {queryResult.ok && expenses.isSuccess && expenses.data.items.length === 0 && filters.page > 1 && (
+        <p className="status">
+          На этой странице трат нет{' '}
+          <button type="button" onClick={() => changeFiltersAndPage({ ...filters, page: 1 })}>
+            На первую страницу
+          </button>
+        </p>
+      )}
+      {queryResult.ok && expenses.isSuccess && expenses.data.items.length > 0 && (
         <ExpenseTable
-          expenses={expenses.data}
+          expenses={expenses.data.items}
           members={memberList}
           onEdit={(expense) => setFormState({ expense })}
           onDelete={confirmDelete}
+        />
+      )}
+      {queryResult.ok && expenses.isSuccess && (expenses.data.items.length > 0 || filters.page > 1) && (
+        <Pagination
+          page={filters.page}
+          info={describePage(filters.page, expenses.data.items.length, expenses.data.total)}
+          onPage={(page) => changeFiltersAndPage({ ...filters, page })}
         />
       )}
       {formState !== null && (

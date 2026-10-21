@@ -74,3 +74,31 @@ func (s *Suite) TestAppendMessagesForUser_Concurrent() {
 		s.Equal([]agent.Message{userText(strconv.Itoa(i)), assistantText("ok")}, s.history.ListMessagesForUser(int64(i), now))
 	}
 }
+
+func (s *Suite) TestAppendMessagesForUser_RemovesExpiredUsers() {
+	s.history.AppendMessagesForUser(userA, now, userText("вопрос"), assistantText("ответ"))
+	s.Equal(1, s.history.DialogCount())
+
+	s.history.AppendMessagesForUser(userB, now.Add(16*time.Minute), userText("вопрос"), assistantText("ответ"))
+
+	s.Equal(1, s.history.DialogCount())
+	s.Empty(s.history.ListMessagesForUser(userA, now.Add(16*time.Minute)))
+	s.NotEmpty(s.history.ListMessagesForUser(userB, now.Add(16*time.Minute)))
+}
+
+func (s *Suite) TestAppendMessagesForUser_KeepsActiveUsers() {
+	s.history.AppendMessagesForUser(userA, now.Add(10*time.Minute), userText("вопрос"), assistantText("ответ"))
+
+	s.history.AppendMessagesForUser(userB, now.Add(20*time.Minute), userText("вопрос"), assistantText("ответ"))
+
+	s.Equal(2, s.history.DialogCount())
+}
+
+func (s *Suite) TestAppendMessagesForUser_RemovesExpiredOnNextSweep() {
+	s.history.AppendMessagesForUser(userA, now, userText("вопрос"), assistantText("ответ"))
+	s.history.AppendMessagesForUser(userB, now.Add(14*time.Minute), userText("вопрос"), assistantText("ответ"))
+
+	s.history.AppendMessagesForUser(userB, now.Add(16*time.Minute), userText("вопрос"), assistantText("ответ"))
+
+	s.Equal(1, s.history.DialogCount())
+}

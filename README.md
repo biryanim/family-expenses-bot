@@ -13,6 +13,8 @@ docker compose up --build
 
 В `.env` нужно заполнить `TELEGRAM_BOT_TOKEN`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` и пароль PostgreSQL в `POSTGRES_PASSWORD` и `DATABASE_DSN`. Подойдёт любой OpenAI-совместимый Chat Completions API с поддержкой tool calling. Миграции применяет сервис `migrate` до старта приложения. REST API слушает `HTTP_PORT` (по умолчанию 8080), веб-панель доступна на `http://localhost:3000` (порт `WEB_PORT`) и обращается к API через собственный `/api/`. Если пароль PostgreSQL содержит `@ : / ?` и подобные символы, в `DATABASE_DSN` его нужно URL-кодировать (или взять пароль попроще).
 
+`GET /api/expenses` отдаёт траты постранично: параметры `limit` (1–500, по умолчанию 100) и `offset`, общее количество подходящих трат приходит в заголовке `X-Total-Count`.
+
 Данные БД лежат в томе `pgdata` и переживают `docker compose down`. Чтобы стереть их, выполните `docker compose down -v`.
 
 Остальные команды (`make test`, `make lint`, `make migrate-*`) описаны в `Makefile`.

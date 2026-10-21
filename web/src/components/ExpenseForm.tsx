@@ -117,7 +117,7 @@ export function ExpenseForm({ expense, members, onClose }: Props) {
         </label>
         <label>
           Комментарий
-          <input value={values.comment} onChange={(e) => change({ comment: e.target.value })} />
+          <input value={values.comment} maxLength={200} onChange={(e) => change({ comment: e.target.value })} />
         </label>
         {mutation.isError && <ErrorMessage error={mutation.error} />}
         <div className="dialog-actions">

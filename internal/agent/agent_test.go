@@ -125,3 +125,11 @@ func assistantText(text string) agent.Message {
 func assistantCalls(calls ...agent.ToolCall) agent.Message {
 	return agent.Message{Role: agent.RoleAssistant, ToolCalls: calls}
 }
+
+func pageOf(expenses ...entity.Expense) entity.ExpensePage {
+	page := entity.ExpensePage{Items: expenses, Count: int64(len(expenses))}
+	for _, e := range expenses {
+		page.Total += e.Amount
+	}
+	return page
+}

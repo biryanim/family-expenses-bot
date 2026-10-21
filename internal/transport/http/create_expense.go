@@ -33,6 +33,10 @@ func (s *Server) CreateExpense(ctx context.Context, request openapi.CreateExpens
 			return openapi.CreateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
 				Code: openapi.ErrorCodeInvalidCategory, Message: "unknown category",
 			}}, nil
+		case errors.Is(err, entity.ErrInvalidComment):
+			return openapi.CreateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
+				Code: openapi.ErrorCodeInvalidComment, Message: "comment must be at most 200 characters",
+			}}, nil
 		case errors.Is(err, entity.ErrUnknownUser):
 			return openapi.CreateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
 				Code: openapi.ErrorCodeUnknownMember, Message: "unknown family member",

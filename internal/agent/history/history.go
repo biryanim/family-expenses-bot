@@ -20,6 +20,7 @@ type entry struct {
 type History struct {
 	mu      sync.Mutex
 	dialogs map[int64][]entry
+	sweptAt time.Time
 }
 
 func New() *History {

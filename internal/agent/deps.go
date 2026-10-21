@@ -19,3 +19,7 @@ type ConversationStore interface {
 	ListMessagesForUser(userID int64, now time.Time) []Message
 	AppendMessagesForUser(userID int64, now time.Time, messages ...Message)
 }
+
+type ActionResult interface {
+	DescribeAction() string
+}

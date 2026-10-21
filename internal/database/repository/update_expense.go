@@ -11,11 +11,17 @@ import (
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
-func (r *Repository) UpdateExpense(ctx context.Context, e entity.Expense) (entity.Expense, error) {
-	const sql = "UPDATE expenses SET amount = $1, category = $2, spent_at = $3, comment = $4, updated_at = now() WHERE id = $5 RETURNING " + expenseColumns
+func (r *Repository) UpdateExpense(ctx context.Context, id int64, p entity.ExpensePatch) (entity.Expense, error) {
+	const sql = "UPDATE expenses SET amount = COALESCE($1, amount), category = COALESCE($2, category), spent_at = COALESCE($3, spent_at), comment = COALESCE($4, comment), updated_at = now() WHERE id = $5 RETURNING " + expenseColumns
+
+	var category *string
+	if p.Category != nil {
+		value := string(*p.Category)
+		category = &value
+	}
 
 	var updated entity.Expense
-	err := r.pool.QueryRow(ctx, sql, e.Amount, string(e.Category), e.SpentAt, e.Comment, e.ID).Scan(
+	err := r.pool.QueryRow(ctx, sql, p.Amount, category, p.SpentAt, p.Comment, id).Scan(
 		&updated.ID, &updated.UserID, &updated.Amount, &updated.Category,
 		&updated.SpentAt, &updated.Comment, &updated.CreatedAt, &updated.UpdatedAt,
 	)

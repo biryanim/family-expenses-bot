@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"log/slog"
+	"unicode/utf8"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -25,8 +26,22 @@ func (h *Handler) HandleUpdate(ctx context.Context, _ *bot.Bot, update *models.U
 	userID = msg.From.ID
 	chatID := msg.Chat.ID
 
+	release, err := h.locks.AcquireForUser(ctx, userID)
+	if err != nil {
+		return
+	}
+	defer release()
+
 	if msg.Text == "" {
 		if _, err := h.sender.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: replyTextOnly}); err != nil {
+			h.logger.ErrorContext(ctx, "telegram send message failed",
+				slog.Int64("user_id", userID), slog.Int64("chat_id", chatID), slog.Any("error", err))
+		}
+		return
+	}
+
+	if utf8.RuneCountInString(msg.Text) > entity.MaxMessageLength {
+		if _, err := h.sender.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: replyTooLong}); err != nil {
 			h.logger.ErrorContext(ctx, "telegram send message failed",
 				slog.Int64("user_id", userID), slog.Int64("chat_id", chatID), slog.Any("error", err))
 		}
@@ -51,7 +66,9 @@ func (h *Handler) HandleUpdate(ctx context.Context, _ *bot.Bot, update *models.U
 	reply, err := h.agent.HandleMessage(ctx, userID, msg.Text)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "agent handle message failed", slog.Int64("user_id", userID), slog.Any("error", err))
-		reply = replyFailure
+		if reply == "" {
+			reply = replyFailure
+		}
 	}
 
 	if _, err := h.sender.SendMessage(ctx, &bot.SendMessageParams{ChatID: chatID, Text: reply}); err != nil {

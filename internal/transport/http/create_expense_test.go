@@ -94,3 +94,14 @@ func (s *Suite) TestCreateExpense_InternalError() {
 	s.Contains(rec.Body.String(), `"code":"internal"`)
 	s.NotContains(rec.Body.String(), "connection refused")
 }
+
+func (s *Suite) TestCreateExpense_InvalidComment() {
+	s.usecase.EXPECT().
+		CreateExpense(gomock.Any(), gomock.Any()).
+		Return(entity.Expense{}, entity.ErrInvalidComment)
+
+	rec := s.serve(http.MethodPost, "/api/expenses", `{"user_id":100,"amount":35000,"category":"food","comment":"длинный"}`)
+
+	s.Equal(http.StatusBadRequest, rec.Code)
+	s.Contains(rec.Body.String(), `"code":"invalid_comment"`)
+}

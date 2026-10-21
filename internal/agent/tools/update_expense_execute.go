@@ -27,48 +27,37 @@ func (t *UpdateExpense) Execute(ctx context.Context, userID int64, arguments str
 		return agent.ToolError{Error: "invalid arguments: " + err.Error()}, nil
 	}
 
-	var amount int64
+	var patch entity.ExpensePatch
 	if args.Amount != nil {
-		parsed, err := entity.ParseAmount(args.Amount.String())
+		amount, err := entity.ParseAmount(args.Amount.String())
 		if err != nil {
 			return agent.ToolError{Error: "invalid amount: expected rubles with at most two decimal places"}, nil
 		}
-		amount = parsed
+		patch.Amount = &amount
 	}
-	var spentAt time.Time
+	if args.Category != nil {
+		category := entity.Category(*args.Category)
+		if !category.Valid() {
+			category = entity.CategoryOther
+		}
+		patch.Category = &category
+	}
+	if args.Comment != nil {
+		comment := strings.TrimSpace(*args.Comment)
+		patch.Comment = &comment
+	}
 	if args.Date != nil {
 		date, err := time.ParseInLocation(time.DateOnly, *args.Date, time.Local)
 		if err != nil {
 			return agent.ToolError{Error: "invalid date: expected YYYY-MM-DD"}, nil
 		}
-		spentAt = date
+		patch.SpentAt = &date
+	}
+	if patch.Amount == nil && patch.Category == nil && patch.Comment == nil && patch.SpentAt == nil {
+		return agent.ToolError{Error: "nothing to update: pass amount, category, comment or date"}, nil
 	}
 
-	expense, err := t.usecase.GetExpenseForUser(ctx, userID, args.ID)
-	if err != nil {
-		if errors.Is(err, entity.ErrNotFound) {
-			return agent.ToolError{Error: "expense not found"}, nil
-		}
-		return nil, fmt.Errorf("t.usecase.GetExpenseForUser: %w", err)
-	}
-
-	if args.Amount != nil {
-		expense.Amount = amount
-	}
-	if args.Category != nil {
-		expense.Category = entity.Category(*args.Category)
-		if !expense.Category.Valid() {
-			expense.Category = entity.CategoryOther
-		}
-	}
-	if args.Comment != nil {
-		expense.Comment = strings.TrimSpace(*args.Comment)
-	}
-	if args.Date != nil {
-		expense.SpentAt = spentAt
-	}
-
-	updated, err := t.usecase.UpdateExpenseForUser(ctx, userID, expense)
+	updated, err := t.usecase.UpdateExpenseForUser(ctx, userID, args.ID, patch)
 	if err != nil {
 		switch {
 		case errors.Is(err, entity.ErrNotFound):
@@ -79,6 +68,8 @@ func (t *UpdateExpense) Execute(ctx context.Context, userID int64, arguments str
 			return agent.ToolError{Error: "invalid category"}, nil
 		case errors.Is(err, entity.ErrInvalidDate):
 			return agent.ToolError{Error: "invalid date"}, nil
+		case errors.Is(err, entity.ErrInvalidComment):
+			return agent.ToolError{Error: "comment too long: at most 200 characters"}, nil
 		}
 		return nil, fmt.Errorf("t.usecase.UpdateExpenseForUser: %w", err)
 	}

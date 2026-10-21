@@ -42,7 +42,9 @@ func (t *AddExpense) Execute(ctx context.Context, userID int64, arguments string
 		if err != nil {
 			return agent.ToolError{Error: "invalid date: expected YYYY-MM-DD"}, nil
 		}
-		if args.Date != time.Now().Format(time.DateOnly) {
+		nowYear, nowMonth, nowDay := time.Now().Date()
+		dateYear, dateMonth, dateDay := date.Date()
+		if nowYear != dateYear || nowMonth != dateMonth || nowDay != dateDay {
 			spentAt = date
 		}
 	}
@@ -60,6 +62,8 @@ func (t *AddExpense) Execute(ctx context.Context, userID int64, arguments string
 			return agent.ToolError{Error: "invalid amount"}, nil
 		case errors.Is(err, entity.ErrInvalidCategory):
 			return agent.ToolError{Error: "invalid category"}, nil
+		case errors.Is(err, entity.ErrInvalidComment):
+			return agent.ToolError{Error: "comment too long: at most 200 characters"}, nil
 		}
 		return nil, fmt.Errorf("t.usecase.CreateExpense: %w", err)
 	}

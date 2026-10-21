@@ -195,3 +195,17 @@ func (s *Suite) TestAddExpenseExecute_UsecaseError() {
 	s.ErrorIs(err, ucErr)
 	s.Contains(err.Error(), "t.usecase.CreateExpense")
 }
+
+func (s *Suite) TestAddExpenseExecute_CommentTooLong() {
+	ctx := context.Background()
+
+	s.uc.EXPECT().
+		CreateExpense(gomock.Any(), gomock.Any()).
+		Return(entity.Expense{}, entity.ErrInvalidComment)
+
+	result, err := s.addExpense.Execute(ctx, userA, `{"amount":350,"category":"food","comment":"длинный"}`)
+
+	s.NoError(err)
+	s.IsType(agent.ToolError{}, result)
+	s.Contains(result.(agent.ToolError).Error, "comment too long")
+}

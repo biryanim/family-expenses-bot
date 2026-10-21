@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * List expenses of all family members
-         * @description Filters are optional and combined with AND. Results are ordered from the newest spent_at to the oldest.
+         * @description Filters are optional and combined with AND. Results are ordered from the newest spent_at to the oldest and paginated with limit and offset.
          */
         get: operations["listExpenses"];
         put?: never;
@@ -143,7 +143,7 @@ export interface components {
             last_name: string;
         };
         /** @enum {string} */
-        ErrorCode: "invalid_request" | "invalid_amount" | "invalid_category" | "invalid_date" | "unknown_member" | "not_found" | "internal";
+        ErrorCode: "invalid_request" | "invalid_amount" | "invalid_category" | "invalid_date" | "invalid_pagination" | "invalid_comment" | "unknown_member" | "not_found" | "internal";
         Error: {
             code: components["schemas"]["ErrorCode"];
             message: string;
@@ -198,6 +198,10 @@ export interface operations {
                 /** @description End of the spent_at period, exclusive. */
                 to?: string;
                 category?: components["schemas"]["Category"];
+                /** @description Maximum number of expenses in the response. */
+                limit?: number;
+                /** @description Number of expenses to skip. */
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -208,6 +212,8 @@ export interface operations {
             /** @description Expenses matching the filters; an empty array if none. */
             200: {
                 headers: {
+                    /** @description Number of expenses matching the filters, ignoring limit and offset. */
+                    "X-Total-Count": number;
                     [name: string]: unknown;
                 };
                 content: {

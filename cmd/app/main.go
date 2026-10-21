@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -39,6 +40,10 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.Log.Level}))
 	slog.SetDefault(logger)
+
+	if err := config.CheckTimezone(os.Getenv("TZ")); err != nil {
+		logger.Warn("unknown TZ, using UTC", slog.String("tz", os.Getenv("TZ")), slog.Any("error", err))
+	}
 
 	if err := run(cfg, logger); err != nil {
 		logger.Error("app failed", slog.Any("error", err))
@@ -76,10 +81,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	}
 	b.RegisterHandlerMatchFunc(func(*models.Update) bool { return true }, telegram.New(uc, expenseAgent, b, logger).HandleUpdate)
 
-	srv := &http.Server{
-		Handler:           httpapi.NewRouter(httpapi.New(uc, logger), cfg.HTTP.AllowedOrigins),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	srv := httpapi.NewHTTPServer(httpapi.NewRouter(httpapi.New(uc, logger), cfg.HTTP.AllowedOrigins))
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", ":"+strconv.Itoa(cfg.HTTP.Port))

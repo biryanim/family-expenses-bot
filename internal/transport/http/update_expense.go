@@ -10,17 +10,19 @@ import (
 )
 
 func (s *Server) UpdateExpense(ctx context.Context, request openapi.UpdateExpenseRequestObject) (openapi.UpdateExpenseResponseObject, error) {
-	input := entity.Expense{
-		ID:       request.Id,
-		Amount:   request.Body.Amount,
-		Category: entity.Category(request.Body.Category),
-		SpentAt:  request.Body.SpentAt,
-	}
+	category := entity.Category(request.Body.Category)
+	comment := ""
 	if request.Body.Comment != nil {
-		input.Comment = *request.Body.Comment
+		comment = *request.Body.Comment
+	}
+	patch := entity.ExpensePatch{
+		Amount:   &request.Body.Amount,
+		Category: &category,
+		SpentAt:  &request.Body.SpentAt,
+		Comment:  &comment,
 	}
 
-	updated, err := s.usecase.UpdateExpense(ctx, input)
+	updated, err := s.usecase.UpdateExpense(ctx, request.Id, patch)
 	if err != nil {
 		switch {
 		case errors.Is(err, entity.ErrInvalidAmount):
@@ -30,6 +32,10 @@ func (s *Server) UpdateExpense(ctx context.Context, request openapi.UpdateExpens
 		case errors.Is(err, entity.ErrInvalidCategory):
 			return openapi.UpdateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
 				Code: openapi.ErrorCodeInvalidCategory, Message: "unknown category",
+			}}, nil
+		case errors.Is(err, entity.ErrInvalidComment):
+			return openapi.UpdateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
+				Code: openapi.ErrorCodeInvalidComment, Message: "comment must be at most 200 characters",
 			}}, nil
 		case errors.Is(err, entity.ErrInvalidDate):
 			return openapi.UpdateExpense400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{

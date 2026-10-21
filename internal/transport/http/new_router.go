@@ -10,6 +10,8 @@ import (
 	"github.com/biryanim/family-expenses-bot/internal/transport/http/openapi"
 )
 
+const maxRequestBodyBytes = 1 << 20
+
 func NewRouter(s *Server, allowedOrigins []string) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -17,6 +19,7 @@ func NewRouter(s *Server, allowedOrigins []string) http.Handler {
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowedHeaders:   []string{"Content-Type"},
+		ExposedHeaders:   []string{"X-Total-Count"},
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
@@ -25,9 +28,10 @@ func NewRouter(s *Server, allowedOrigins []string) http.Handler {
 		RequestErrorHandlerFunc:  HandleRequestError,
 		ResponseErrorHandlerFunc: s.HandleResponseError,
 	})
-	return openapi.HandlerWithOptions(strict, openapi.ChiServerOptions{
+	handler := openapi.HandlerWithOptions(strict, openapi.ChiServerOptions{
 		BaseURL:          "/api",
 		BaseRouter:       r,
 		ErrorHandlerFunc: HandleRequestError,
 	})
+	return http.MaxBytesHandler(handler, maxRequestBodyBytes)
 }

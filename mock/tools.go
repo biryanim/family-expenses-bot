@@ -101,10 +101,10 @@ func (mr *MockToolsUsecaseMockRecorder) GetLastExpenseForUser(ctx, userID any) *
 }
 
 // ListExpensesForUser mocks base method.
-func (m *MockToolsUsecase) ListExpensesForUser(ctx context.Context, userID int64, f entity.ExpenseFilter) ([]entity.Expense, error) {
+func (m *MockToolsUsecase) ListExpensesForUser(ctx context.Context, userID int64, f entity.ExpenseFilter) (entity.ExpensePage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListExpensesForUser", ctx, userID, f)
-	ret0, _ := ret[0].([]entity.Expense)
+	ret0, _ := ret[0].(entity.ExpensePage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -116,16 +116,16 @@ func (mr *MockToolsUsecaseMockRecorder) ListExpensesForUser(ctx, userID, f any) 
 }
 
 // UpdateExpenseForUser mocks base method.
-func (m *MockToolsUsecase) UpdateExpenseForUser(ctx context.Context, userID int64, e entity.Expense) (entity.Expense, error) {
+func (m *MockToolsUsecase) UpdateExpenseForUser(ctx context.Context, userID, id int64, p entity.ExpensePatch) (entity.Expense, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateExpenseForUser", ctx, userID, e)
+	ret := m.ctrl.Call(m, "UpdateExpenseForUser", ctx, userID, id, p)
 	ret0, _ := ret[0].(entity.Expense)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateExpenseForUser indicates an expected call of UpdateExpenseForUser.
-func (mr *MockToolsUsecaseMockRecorder) UpdateExpenseForUser(ctx, userID, e any) *gomock.Call {
+func (mr *MockToolsUsecaseMockRecorder) UpdateExpenseForUser(ctx, userID, id, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExpenseForUser", reflect.TypeOf((*MockToolsUsecase)(nil).UpdateExpenseForUser), ctx, userID, e)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExpenseForUser", reflect.TypeOf((*MockToolsUsecase)(nil).UpdateExpenseForUser), ctx, userID, id, p)
 }

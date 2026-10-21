@@ -7,17 +7,20 @@ import (
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
-func (u *Usecase) ListExpenses(ctx context.Context, f entity.ExpenseFilter) ([]entity.Expense, error) {
+func (u *Usecase) ListExpenses(ctx context.Context, f entity.ExpenseFilter) (entity.ExpensePage, error) {
 	if f.Category != "" && !f.Category.Valid() {
-		return nil, entity.ErrInvalidCategory
+		return entity.ExpensePage{}, entity.ErrInvalidCategory
 	}
 	if !f.From.IsZero() && !f.To.IsZero() && f.From.After(f.To) {
-		return nil, entity.ErrInvalidDate
+		return entity.ExpensePage{}, entity.ErrInvalidDate
+	}
+	if f.Limit < 1 || f.Limit > entity.MaxPageLimit || f.Offset < 0 {
+		return entity.ExpensePage{}, entity.ErrInvalidPagination
 	}
 
-	expenses, err := u.repo.ListExpenses(ctx, f)
+	page, err := u.repo.ListExpenses(ctx, f)
 	if err != nil {
-		return nil, fmt.Errorf("u.repo.ListExpenses: %w", err)
+		return entity.ExpensePage{}, fmt.Errorf("u.repo.ListExpenses: %w", err)
 	}
-	return expenses, nil
+	return page, nil
 }

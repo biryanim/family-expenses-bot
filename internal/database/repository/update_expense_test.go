@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -12,12 +13,11 @@ import (
 	"github.com/biryanim/family-expenses-bot/mock"
 )
 
-const updateExpenseSQL = "UPDATE expenses SET amount = $1, category = $2, spent_at = $3, comment = $4, updated_at = now() WHERE id = $5 RETURNING id, user_id, amount, category, spent_at, comment, created_at, updated_at"
+const updateExpenseSQL = "UPDATE expenses SET amount = COALESCE($1, amount), category = COALESCE($2, category), spent_at = COALESCE($3, spent_at), comment = COALESCE($4, comment), updated_at = now() WHERE id = $5 RETURNING id, user_id, amount, category, spent_at, comment, created_at, updated_at"
 
 func (s *Suite) TestUpdateExpense_Success() {
 	ctx := context.Background()
-	input := testExpense()
-	input.Amount = 120000
+	amount := int64(120000)
 	updated := testExpense()
 	updated.Amount = 120000
 	updated.UpdatedAt = &updatedAt
@@ -31,10 +31,10 @@ func (s *Suite) TestUpdateExpense_Success() {
 		})
 
 	s.pool.EXPECT().
-		QueryRow(gomock.Any(), updateExpenseSQL, int64(120000), "food", spentAt, "кофе", int64(7)).
+		QueryRow(gomock.Any(), updateExpenseSQL, &amount, (*string)(nil), (*time.Time)(nil), (*string)(nil), int64(7)).
 		Return(mockRow)
 
-	result, err := s.repo.UpdateExpense(ctx, input)
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Amount: &amount})
 
 	s.NoError(err)
 	s.Equal(int64(7), result.ID)
@@ -47,9 +47,61 @@ func (s *Suite) TestUpdateExpense_Success() {
 	s.Equal(&updatedAt, result.UpdatedAt)
 }
 
+func (s *Suite) TestUpdateExpense_AllFields() {
+	ctx := context.Background()
+	amount := int64(50000)
+	category := entity.CategoryTransport
+	categoryArg := "transport"
+	date := spentAt.Add(-24 * time.Hour)
+	comment := "такси"
+	updated := testExpense()
+	updated.UpdatedAt = &updatedAt
+
+	mockRow := mock.NewMockRow(s.ctrl)
+	mockRow.EXPECT().
+		Scan(expenseScanArgs()...).
+		DoAndReturn(func(dest ...any) error {
+			populateExpenseScanDest(updated, dest...)
+			return nil
+		})
+
+	s.pool.EXPECT().
+		QueryRow(gomock.Any(), updateExpenseSQL, &amount, &categoryArg, &date, &comment, int64(7)).
+		Return(mockRow)
+
+	_, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Amount: &amount, Category: &category, SpentAt: &date, Comment: &comment})
+
+	s.NoError(err)
+}
+
+func (s *Suite) TestUpdateExpense_EmptyComment() {
+	ctx := context.Background()
+	comment := ""
+	updated := testExpense()
+	updated.Comment = ""
+	updated.UpdatedAt = &updatedAt
+
+	mockRow := mock.NewMockRow(s.ctrl)
+	mockRow.EXPECT().
+		Scan(expenseScanArgs()...).
+		DoAndReturn(func(dest ...any) error {
+			populateExpenseScanDest(updated, dest...)
+			return nil
+		})
+
+	s.pool.EXPECT().
+		QueryRow(gomock.Any(), updateExpenseSQL, (*int64)(nil), (*string)(nil), (*time.Time)(nil), &comment, int64(7)).
+		Return(mockRow)
+
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Comment: &comment})
+
+	s.NoError(err)
+	s.Empty(result.Comment)
+}
+
 func (s *Suite) TestUpdateExpense_NotFound() {
 	ctx := context.Background()
-	input := testExpense()
+	amount := int64(1)
 
 	mockRow := mock.NewMockRow(s.ctrl)
 	mockRow.EXPECT().
@@ -60,7 +112,7 @@ func (s *Suite) TestUpdateExpense_NotFound() {
 		QueryRow(gomock.Any(), updateExpenseSQL, mockAnyArgs(5)...).
 		Return(mockRow)
 
-	result, err := s.repo.UpdateExpense(ctx, input)
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Amount: &amount})
 
 	s.Error(err)
 	s.Equal(entity.Expense{}, result)
@@ -69,8 +121,7 @@ func (s *Suite) TestUpdateExpense_NotFound() {
 
 func (s *Suite) TestUpdateExpense_InvalidAmount() {
 	ctx := context.Background()
-	input := testExpense()
-	input.Amount = 0
+	amount := int64(0)
 
 	mockRow := mock.NewMockRow(s.ctrl)
 	mockRow.EXPECT().
@@ -81,7 +132,7 @@ func (s *Suite) TestUpdateExpense_InvalidAmount() {
 		QueryRow(gomock.Any(), gomock.Any(), mockAnyArgs(5)...).
 		Return(mockRow)
 
-	result, err := s.repo.UpdateExpense(ctx, input)
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Amount: &amount})
 
 	s.Error(err)
 	s.Equal(entity.Expense{}, result)
@@ -90,8 +141,7 @@ func (s *Suite) TestUpdateExpense_InvalidAmount() {
 
 func (s *Suite) TestUpdateExpense_InvalidCategory() {
 	ctx := context.Background()
-	input := testExpense()
-	input.Category = "travel"
+	category := entity.Category("travel")
 
 	mockRow := mock.NewMockRow(s.ctrl)
 	mockRow.EXPECT().
@@ -102,7 +152,7 @@ func (s *Suite) TestUpdateExpense_InvalidCategory() {
 		QueryRow(gomock.Any(), gomock.Any(), mockAnyArgs(5)...).
 		Return(mockRow)
 
-	result, err := s.repo.UpdateExpense(ctx, input)
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Category: &category})
 
 	s.Error(err)
 	s.Equal(entity.Expense{}, result)
@@ -111,7 +161,7 @@ func (s *Suite) TestUpdateExpense_InvalidCategory() {
 
 func (s *Suite) TestUpdateExpense_ScanError() {
 	ctx := context.Background()
-	input := testExpense()
+	amount := int64(1)
 	scanErr := errors.New("scan error")
 
 	mockRow := mock.NewMockRow(s.ctrl)
@@ -123,7 +173,7 @@ func (s *Suite) TestUpdateExpense_ScanError() {
 		QueryRow(gomock.Any(), gomock.Any(), mockAnyArgs(5)...).
 		Return(mockRow)
 
-	result, err := s.repo.UpdateExpense(ctx, input)
+	result, err := s.repo.UpdateExpense(ctx, 7, entity.ExpensePatch{Amount: &amount})
 
 	s.Error(err)
 	s.Equal(entity.Expense{}, result)

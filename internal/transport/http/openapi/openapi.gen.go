@@ -51,13 +51,15 @@ func (e Category) Valid() bool {
 
 // Defines values for ErrorCode.
 const (
-	ErrorCodeInternal        ErrorCode = "internal"
-	ErrorCodeInvalidAmount   ErrorCode = "invalid_amount"
-	ErrorCodeInvalidCategory ErrorCode = "invalid_category"
-	ErrorCodeInvalidDate     ErrorCode = "invalid_date"
-	ErrorCodeInvalidRequest  ErrorCode = "invalid_request"
-	ErrorCodeNotFound        ErrorCode = "not_found"
-	ErrorCodeUnknownMember   ErrorCode = "unknown_member"
+	ErrorCodeInternal          ErrorCode = "internal"
+	ErrorCodeInvalidAmount     ErrorCode = "invalid_amount"
+	ErrorCodeInvalidCategory   ErrorCode = "invalid_category"
+	ErrorCodeInvalidComment    ErrorCode = "invalid_comment"
+	ErrorCodeInvalidDate       ErrorCode = "invalid_date"
+	ErrorCodeInvalidPagination ErrorCode = "invalid_pagination"
+	ErrorCodeInvalidRequest    ErrorCode = "invalid_request"
+	ErrorCodeNotFound          ErrorCode = "not_found"
+	ErrorCodeUnknownMember     ErrorCode = "unknown_member"
 )
 
 // Valid indicates whether the value is a known member of the ErrorCode enum.
@@ -69,7 +71,11 @@ func (e ErrorCode) Valid() bool {
 		return true
 	case ErrorCodeInvalidCategory:
 		return true
+	case ErrorCodeInvalidComment:
+		return true
 	case ErrorCodeInvalidDate:
+		return true
+	case ErrorCodeInvalidPagination:
 		return true
 	case ErrorCodeInvalidRequest:
 		return true
@@ -179,6 +185,12 @@ type ListExpensesParams struct {
 	// To End of the spent_at period, exclusive.
 	To       *time.Time `form:"to,omitempty" json:"to,omitempty"`
 	Category *Category  `form:"category,omitempty" json:"category,omitempty"`
+
+	// Limit Maximum number of expenses in the response.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Number of expenses to skip.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
 // CreateExpenseJSONRequestBody defines body for CreateExpense for application/json ContentType.
@@ -315,6 +327,32 @@ func (siw *ServerInterfaceWrapper) ListExpenses(w http.ResponseWriter, r *http.R
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "category"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", r.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "offset"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
 		}
 		return
 	}
@@ -585,15 +623,23 @@ type ListExpensesResponseObject interface {
 	VisitListExpensesResponse(w http.ResponseWriter) error
 }
 
-type ListExpenses200JSONResponse []Expense
+type ListExpenses200ResponseHeaders struct {
+	XTotalCount int64
+}
+
+type ListExpenses200JSONResponse struct {
+	Body    []Expense
+	Headers ListExpenses200ResponseHeaders
+}
 
 func (response ListExpenses200JSONResponse) VisitListExpensesResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", fmt.Sprint(response.Headers.XTotalCount))
 	w.WriteHeader(200)
 	_, err := buf.WriteTo(w)
 	return err

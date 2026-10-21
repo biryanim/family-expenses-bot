@@ -10,13 +10,13 @@ import (
 type ExpenseRepository interface {
 	CreateExpense(ctx context.Context, e entity.Expense) (entity.Expense, error)
 	GetExpense(ctx context.Context, id int64) (entity.Expense, error)
-	ListExpenses(ctx context.Context, f entity.ExpenseFilter) ([]entity.Expense, error)
-	UpdateExpense(ctx context.Context, e entity.Expense) (entity.Expense, error)
+	ListExpenses(ctx context.Context, f entity.ExpenseFilter) (entity.ExpensePage, error)
+	UpdateExpense(ctx context.Context, id int64, p entity.ExpensePatch) (entity.Expense, error)
 	DeleteExpense(ctx context.Context, id int64) error
 
 	GetExpenseForUser(ctx context.Context, userID, id int64) (entity.Expense, error)
-	ListExpensesForUser(ctx context.Context, userID int64, f entity.ExpenseFilter) ([]entity.Expense, error)
-	UpdateExpenseForUser(ctx context.Context, userID int64, e entity.Expense) (entity.Expense, error)
+	ListExpensesForUser(ctx context.Context, userID int64, f entity.ExpenseFilter) (entity.ExpensePage, error)
+	UpdateExpenseForUser(ctx context.Context, userID, id int64, p entity.ExpensePatch) (entity.Expense, error)
 	DeleteExpenseForUser(ctx context.Context, userID, id int64) error
 	GetLastExpenseForUser(ctx context.Context, userID int64) (entity.Expense, error)
 

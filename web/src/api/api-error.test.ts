@@ -7,6 +7,8 @@ describe('apiErrorFromResponse', () => {
     ['invalid_amount', 'Некорректная сумма'],
     ['invalid_category', 'Некорректная категория'],
     ['invalid_date', 'Некорректная дата'],
+    ['invalid_pagination', 'Некорректная страница'],
+    ['invalid_comment', 'Комментарий слишком длинный (не больше 200 символов)'],
     ['unknown_member', 'Такого члена семьи нет'],
     ['not_found', 'Трата не найдена'],
     ['internal', 'Ошибка сервера, попробуйте позже'],

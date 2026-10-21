@@ -23,11 +23,12 @@ func (s *Suite) TestListExpensesExecute_Success() {
 		From:     time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local),
 		To:       time.Date(2026, 10, 19, 0, 0, 0, 0, time.Local),
 		Category: entity.CategoryFood,
+		Limit:    30,
 	}
 
 	s.uc.EXPECT().
 		ListExpensesForUser(gomock.Any(), userA, filter).
-		Return([]entity.Expense{taxi, testExpense()}, nil)
+		Return(entity.ExpensePage{Items: []entity.Expense{taxi, testExpense()}, Count: 2, Total: 155050}, nil)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{"from":"2026-10-01","to":"2026-10-18","category":"food"}`)
 
@@ -46,8 +47,8 @@ func (s *Suite) TestListExpensesExecute_NoFilter() {
 	ctx := context.Background()
 
 	s.uc.EXPECT().
-		ListExpensesForUser(gomock.Any(), userA, entity.ExpenseFilter{}).
-		Return([]entity.Expense{}, nil)
+		ListExpensesForUser(gomock.Any(), userA, entity.ExpenseFilter{Limit: 30}).
+		Return(entity.ExpensePage{}, nil)
 
 	_, err := s.listExpenses.Execute(ctx, userA, `{}`)
 
@@ -59,7 +60,7 @@ func (s *Suite) TestListExpensesExecute_Empty() {
 
 	s.uc.EXPECT().
 		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
-		Return([]entity.Expense{}, nil)
+		Return(entity.ExpensePage{}, nil)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{"category":"health"}`)
 
@@ -69,7 +70,7 @@ func (s *Suite) TestListExpensesExecute_Empty() {
 
 func (s *Suite) TestListExpensesExecute_Truncated() {
 	ctx := context.Background()
-	expenses := make([]entity.Expense, 45)
+	expenses := make([]entity.Expense, 30)
 	for i := range expenses {
 		expenses[i] = testExpense()
 		expenses[i].ID = int64(i + 1)
@@ -77,27 +78,44 @@ func (s *Suite) TestListExpensesExecute_Truncated() {
 	}
 
 	s.uc.EXPECT().
-		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
-		Return(expenses, nil)
+		ListExpensesForUser(gomock.Any(), userA, entity.ExpenseFilter{Limit: 30}).
+		Return(entity.ExpensePage{Items: expenses, Count: 1000, Total: 100000000}, nil)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{}`)
 
 	s.NoError(err)
 	list := result.(tools.ExpenseList)
-	s.Equal(45, list.Count)
-	s.Equal("4500", list.Total)
+	s.Equal(1000, list.Count)
+	s.Equal("1000000", list.Total)
 	s.Len(list.Expenses, 30)
 	s.Equal(int64(1), list.Expenses[0].ID)
 	s.Equal(int64(30), list.Expenses[29].ID)
 	s.True(list.Truncated)
 }
 
+func (s *Suite) TestListExpensesExecute_ExactlyOnePage() {
+	ctx := context.Background()
+	expenses := make([]entity.Expense, 30)
+	for i := range expenses {
+		expenses[i] = testExpense()
+	}
+
+	s.uc.EXPECT().
+		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
+		Return(entity.ExpensePage{Items: expenses, Count: 30, Total: 1050000}, nil)
+
+	result, err := s.listExpenses.Execute(ctx, userA, `{}`)
+
+	s.NoError(err)
+	s.False(result.(tools.ExpenseList).Truncated)
+}
+
 func (s *Suite) TestListExpensesExecute_InvalidCategory() {
 	ctx := context.Background()
 
 	s.uc.EXPECT().
-		ListExpensesForUser(gomock.Any(), userA, entity.ExpenseFilter{Category: "travel"}).
-		Return(nil, entity.ErrInvalidCategory)
+		ListExpensesForUser(gomock.Any(), userA, entity.ExpenseFilter{Category: "travel", Limit: 30}).
+		Return(entity.ExpensePage{}, entity.ErrInvalidCategory)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{"category":"travel"}`)
 
@@ -110,7 +128,7 @@ func (s *Suite) TestListExpensesExecute_InvalidPeriod() {
 
 	s.uc.EXPECT().
 		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
-		Return(nil, entity.ErrInvalidDate)
+		Return(entity.ExpensePage{}, entity.ErrInvalidDate)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{"from":"2026-10-18","to":"2026-10-01"}`)
 
@@ -151,7 +169,7 @@ func (s *Suite) TestListExpensesExecute_OnlyOwnExpenses() {
 
 	s.uc.EXPECT().
 		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
-		Return([]entity.Expense{ownExpense}, nil)
+		Return(entity.ExpensePage{Items: []entity.Expense{ownExpense}, Count: 1, Total: 35000}, nil)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{"from":"2026-10-12","to":"2026-10-18"}`)
 
@@ -167,7 +185,7 @@ func (s *Suite) TestListExpensesExecute_UsecaseError() {
 
 	s.uc.EXPECT().
 		ListExpensesForUser(gomock.Any(), userA, gomock.Any()).
-		Return(nil, ucErr)
+		Return(entity.ExpensePage{}, ucErr)
 
 	result, err := s.listExpenses.Execute(ctx, userA, `{}`)
 

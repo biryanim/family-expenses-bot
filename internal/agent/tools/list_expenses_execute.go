@@ -26,7 +26,7 @@ func (t *ListExpenses) Execute(ctx context.Context, userID int64, arguments stri
 		return agent.ToolError{Error: "invalid arguments: " + err.Error()}, nil
 	}
 
-	filter := entity.ExpenseFilter{Category: entity.Category(args.Category)}
+	filter := entity.ExpenseFilter{Category: entity.Category(args.Category), Limit: maxListedExpenses}
 	if args.From != "" {
 		from, err := time.ParseInLocation(time.DateOnly, args.From, time.Local)
 		if err != nil {
@@ -42,7 +42,7 @@ func (t *ListExpenses) Execute(ctx context.Context, userID int64, arguments stri
 		filter.To = to.AddDate(0, 0, 1)
 	}
 
-	expenses, err := t.usecase.ListExpensesForUser(ctx, userID, filter)
+	page, err := t.usecase.ListExpensesForUser(ctx, userID, filter)
 	if err != nil {
 		switch {
 		case errors.Is(err, entity.ErrInvalidCategory):
@@ -53,17 +53,13 @@ func (t *ListExpenses) Execute(ctx context.Context, userID int64, arguments stri
 		return nil, fmt.Errorf("t.usecase.ListExpensesForUser: %w", err)
 	}
 
-	var total int64
-	for _, e := range expenses {
-		total += e.Amount
-	}
 	result := ExpenseList{
-		Count:     len(expenses),
-		Total:     entity.FormatAmount(total),
+		Count:     int(page.Count),
+		Total:     entity.FormatAmount(page.Total),
 		Expenses:  []Expense{},
-		Truncated: len(expenses) > maxListedExpenses,
+		Truncated: page.Count > int64(len(page.Items)),
 	}
-	for _, e := range expenses[:min(len(expenses), maxListedExpenses)] {
+	for _, e := range page.Items {
 		result.Expenses = append(result.Expenses, Expense{
 			ID:       e.ID,
 			Amount:   entity.FormatAmount(e.Amount),

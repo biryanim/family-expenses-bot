@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
@@ -14,6 +16,10 @@ func (u *Usecase) CreateExpense(ctx context.Context, e entity.Expense) (entity.E
 	}
 	if !e.Category.Valid() {
 		return entity.Expense{}, entity.ErrInvalidCategory
+	}
+	e.Comment = strings.TrimSpace(e.Comment)
+	if utf8.RuneCountInString(e.Comment) > entity.MaxCommentLength {
+		return entity.Expense{}, entity.ErrInvalidComment
 	}
 	if e.SpentAt.IsZero() {
 		e.SpentAt = time.Now()

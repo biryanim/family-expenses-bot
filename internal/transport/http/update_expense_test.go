@@ -20,7 +20,7 @@ func (s *Suite) TestUpdateExpense_Success() {
 	updated.UpdatedAt = &updatedAt
 
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), entity.Expense{ID: 7, Amount: 150000, Category: entity.CategoryTransport, SpentAt: spentAt, Comment: "такси"}).
+		UpdateExpense(gomock.Any(), int64(7), fullPatch(150000, entity.CategoryTransport, spentAt, "такси")).
 		Return(updated, nil)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/7", `{"amount":150000,"category":"transport","spent_at":"2026-10-17T09:30:00Z","comment":"такси"}`)
@@ -37,7 +37,7 @@ func (s *Suite) TestUpdateExpense_EmptyComment() {
 	updated.UpdatedAt = &updatedAt
 
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), entity.Expense{ID: 7, Amount: 35000, Category: entity.CategoryFood, SpentAt: spentAt}).
+		UpdateExpense(gomock.Any(), int64(7), fullPatch(35000, entity.CategoryFood, spentAt, "")).
 		Return(updated, nil)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/7", `{"amount":35000,"category":"food","spent_at":"2026-10-17T09:30:00Z"}`)
@@ -62,7 +62,7 @@ func (s *Suite) TestUpdateExpense_InvalidJSON() {
 
 func (s *Suite) TestUpdateExpense_InvalidAmount() {
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), gomock.Any()).
+		UpdateExpense(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(entity.Expense{}, entity.ErrInvalidAmount)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/7", `{"amount":-100,"category":"food","spent_at":"2026-10-17T09:30:00Z"}`)
@@ -73,7 +73,7 @@ func (s *Suite) TestUpdateExpense_InvalidAmount() {
 
 func (s *Suite) TestUpdateExpense_InvalidCategory() {
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), entity.Expense{ID: 1, Amount: 35000, Category: "travel", SpentAt: spentAt}).
+		UpdateExpense(gomock.Any(), int64(1), fullPatch(35000, "travel", spentAt, "")).
 		Return(entity.Expense{}, entity.ErrInvalidCategory)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/1", `{"amount":35000,"category":"travel","spent_at":"2026-10-17T09:30:00Z"}`)
@@ -84,7 +84,7 @@ func (s *Suite) TestUpdateExpense_InvalidCategory() {
 
 func (s *Suite) TestUpdateExpense_InvalidDate() {
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), entity.Expense{ID: 1, Amount: 35000, Category: entity.CategoryFood, SpentAt: time.Time{}}).
+		UpdateExpense(gomock.Any(), int64(1), fullPatch(35000, entity.CategoryFood, time.Time{}, "")).
 		Return(entity.Expense{}, entity.ErrInvalidDate)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/1", `{"amount":35000,"category":"food"}`)
@@ -95,7 +95,7 @@ func (s *Suite) TestUpdateExpense_InvalidDate() {
 
 func (s *Suite) TestUpdateExpense_NotFound() {
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), gomock.Any()).
+		UpdateExpense(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(entity.Expense{}, entity.ErrNotFound)
 
 	rec := s.serve(http.MethodPut, "/api/expenses/999", `{"amount":35000,"category":"food","spent_at":"2026-10-17T09:30:00Z"}`)
@@ -106,7 +106,7 @@ func (s *Suite) TestUpdateExpense_NotFound() {
 
 func (s *Suite) TestUpdateExpense_InternalError() {
 	s.usecase.EXPECT().
-		UpdateExpense(gomock.Any(), gomock.Any()).
+		UpdateExpense(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(entity.Expense{}, errors.New("u.repo.UpdateExpense: connection refused"))
 
 	rec := s.serve(http.MethodPut, "/api/expenses/7", `{"amount":35000,"category":"food","spent_at":"2026-10-17T09:30:00Z"}`)
@@ -114,4 +114,19 @@ func (s *Suite) TestUpdateExpense_InternalError() {
 	s.Equal(http.StatusInternalServerError, rec.Code)
 	s.Contains(rec.Body.String(), `"code":"internal"`)
 	s.NotContains(rec.Body.String(), "connection refused")
+}
+
+func fullPatch(amount int64, category entity.Category, at time.Time, comment string) entity.ExpensePatch {
+	return entity.ExpensePatch{Amount: &amount, Category: &category, SpentAt: &at, Comment: &comment}
+}
+
+func (s *Suite) TestUpdateExpense_InvalidComment() {
+	s.usecase.EXPECT().
+		UpdateExpense(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(entity.Expense{}, entity.ErrInvalidComment)
+
+	rec := s.serve(http.MethodPut, "/api/expenses/7", `{"amount":35000,"category":"food","spent_at":"2026-10-17T09:30:00Z","comment":"длинный"}`)
+
+	s.Equal(http.StatusBadRequest, rec.Code)
+	s.Contains(rec.Body.String(), `"code":"invalid_comment"`)
 }

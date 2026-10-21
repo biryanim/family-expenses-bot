@@ -86,10 +86,10 @@ func (mr *MockUsecaseMockRecorder) GetExpense(ctx, id any) *gomock.Call {
 }
 
 // ListExpenses mocks base method.
-func (m *MockUsecase) ListExpenses(ctx context.Context, f entity.ExpenseFilter) ([]entity.Expense, error) {
+func (m *MockUsecase) ListExpenses(ctx context.Context, f entity.ExpenseFilter) (entity.ExpensePage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListExpenses", ctx, f)
-	ret0, _ := ret[0].([]entity.Expense)
+	ret0, _ := ret[0].(entity.ExpensePage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -116,16 +116,16 @@ func (mr *MockUsecaseMockRecorder) ListMembers(ctx any) *gomock.Call {
 }
 
 // UpdateExpense mocks base method.
-func (m *MockUsecase) UpdateExpense(ctx context.Context, e entity.Expense) (entity.Expense, error) {
+func (m *MockUsecase) UpdateExpense(ctx context.Context, id int64, p entity.ExpensePatch) (entity.Expense, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateExpense", ctx, e)
+	ret := m.ctrl.Call(m, "UpdateExpense", ctx, id, p)
 	ret0, _ := ret[0].(entity.Expense)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateExpense indicates an expected call of UpdateExpense.
-func (mr *MockUsecaseMockRecorder) UpdateExpense(ctx, e any) *gomock.Call {
+func (mr *MockUsecaseMockRecorder) UpdateExpense(ctx, id, p any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExpense", reflect.TypeOf((*MockUsecase)(nil).UpdateExpense), ctx, e)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateExpense", reflect.TypeOf((*MockUsecase)(nil).UpdateExpense), ctx, id, p)
 }

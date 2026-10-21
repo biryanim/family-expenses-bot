@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ const (
 
 	selectExpenses = "SELECT id, user_id, amount, category, spent_at, comment, created_at, updated_at FROM expenses"
 	orderExpenses  = " ORDER BY spent_at DESC, id DESC"
+	selectPage     = "SELECT id, user_id, amount, category, spent_at, comment, created_at, updated_at, count(*) OVER (), (sum(amount) OVER ())::bigint FROM expenses"
+	selectTotals   = "SELECT count(*), COALESCE(sum(amount), 0)::bigint FROM expenses"
 )
 
 var (
@@ -76,6 +79,14 @@ func expenseScanArgs() []any {
 	return mockAnyArgs(8)
 }
 
+func pageScanArgs() []any {
+	return mockAnyArgs(10)
+}
+
+func pageTail(whereArgs int) string {
+	return orderExpenses + " LIMIT $" + strconv.Itoa(whereArgs+1) + " OFFSET $" + strconv.Itoa(whereArgs+2)
+}
+
 func testExpense() entity.Expense {
 	return entity.Expense{
 		ID:        7,
@@ -97,4 +108,10 @@ func populateExpenseScanDest(e entity.Expense, dest ...any) {
 	*dest[5].(*string) = e.Comment
 	*dest[6].(*time.Time) = e.CreatedAt
 	*dest[7].(**time.Time) = e.UpdatedAt
+}
+
+func populatePageScanDest(e entity.Expense, count, total int64, dest ...any) {
+	populateExpenseScanDest(e, dest...)
+	*dest[8].(*int64) = count
+	*dest[9].(*int64) = total
 }

@@ -164,3 +164,41 @@ func (mr *MockConversationStoreMockRecorder) ListMessagesForUser(userID, now any
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListMessagesForUser", reflect.TypeOf((*MockConversationStore)(nil).ListMessagesForUser), userID, now)
 }
+
+// MockActionResult is a mock of ActionResult interface.
+type MockActionResult struct {
+	ctrl     *gomock.Controller
+	recorder *MockActionResultMockRecorder
+	isgomock struct{}
+}
+
+// MockActionResultMockRecorder is the mock recorder for MockActionResult.
+type MockActionResultMockRecorder struct {
+	mock *MockActionResult
+}
+
+// NewMockActionResult creates a new mock instance.
+func NewMockActionResult(ctrl *gomock.Controller) *MockActionResult {
+	mock := &MockActionResult{ctrl: ctrl}
+	mock.recorder = &MockActionResultMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockActionResult) EXPECT() *MockActionResultMockRecorder {
+	return m.recorder
+}
+
+// DescribeAction mocks base method.
+func (m *MockActionResult) DescribeAction() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeAction")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// DescribeAction indicates an expected call of DescribeAction.
+func (mr *MockActionResultMockRecorder) DescribeAction() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAction", reflect.TypeOf((*MockActionResult)(nil).DescribeAction))
+}

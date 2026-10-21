@@ -3,22 +3,31 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/biryanim/family-expenses-bot/internal/entity"
 )
 
-func (u *Usecase) UpdateExpenseForUser(ctx context.Context, userID int64, e entity.Expense) (entity.Expense, error) {
-	if e.Amount <= 0 {
+func (u *Usecase) UpdateExpenseForUser(ctx context.Context, userID, id int64, p entity.ExpensePatch) (entity.Expense, error) {
+	if p.Amount != nil && *p.Amount <= 0 {
 		return entity.Expense{}, entity.ErrInvalidAmount
 	}
-	if !e.Category.Valid() {
+	if p.Category != nil && !p.Category.Valid() {
 		return entity.Expense{}, entity.ErrInvalidCategory
 	}
-	if e.SpentAt.IsZero() {
+	if p.SpentAt != nil && p.SpentAt.IsZero() {
 		return entity.Expense{}, entity.ErrInvalidDate
 	}
+	if p.Comment != nil {
+		comment := strings.TrimSpace(*p.Comment)
+		if utf8.RuneCountInString(comment) > entity.MaxCommentLength {
+			return entity.Expense{}, entity.ErrInvalidComment
+		}
+		p.Comment = &comment
+	}
 
-	updated, err := u.repo.UpdateExpenseForUser(ctx, userID, e)
+	updated, err := u.repo.UpdateExpenseForUser(ctx, userID, id, p)
 	if err != nil {
 		return entity.Expense{}, fmt.Errorf("u.repo.UpdateExpenseForUser: %w", err)
 	}

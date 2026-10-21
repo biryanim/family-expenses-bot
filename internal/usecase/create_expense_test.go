@@ -3,6 +3,7 @@ package usecase_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"go.uber.org/mock/gomock"
@@ -113,4 +114,43 @@ func (s *Suite) TestCreateExpense_RepositoryError() {
 	s.Zero(result)
 	s.ErrorIs(err, repoErr)
 	s.Contains(err.Error(), "u.repo.CreateExpense")
+}
+
+func (s *Suite) TestCreateExpense_CommentTooLong() {
+	ctx := context.Background()
+	input := testExpense()
+	input.Comment = strings.Repeat("я", 201)
+
+	result, err := s.uc.CreateExpense(ctx, input)
+
+	s.Equal(entity.ErrInvalidComment, err)
+	s.Zero(result)
+}
+
+func (s *Suite) TestCreateExpense_CommentMaxLength() {
+	ctx := context.Background()
+	input := testExpense()
+	input.Comment = strings.Repeat("я", 200)
+
+	s.repo.EXPECT().CreateExpense(gomock.Any(), input).Return(input, nil)
+
+	result, err := s.uc.CreateExpense(ctx, input)
+
+	s.NoError(err)
+	s.Equal(input, result)
+}
+
+func (s *Suite) TestCreateExpense_TrimsComment() {
+	ctx := context.Background()
+	input := testExpense()
+	input.Comment = "  " + strings.Repeat("я", 200) + "  "
+	saved := testExpense()
+	saved.Comment = strings.Repeat("я", 200)
+
+	s.repo.EXPECT().CreateExpense(gomock.Any(), saved).Return(saved, nil)
+
+	result, err := s.uc.CreateExpense(ctx, input)
+
+	s.NoError(err)
+	s.Equal(saved, result)
 }

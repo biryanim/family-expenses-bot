@@ -3,6 +3,9 @@ package telegram_test
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -219,4 +222,165 @@ func (s *Suite) TestHandleUpdate_Panic() {
 
 	s.Contains(s.logs.String(), `"level":"ERROR"`)
 	s.Contains(s.logs.String(), `"user_id":123`)
+}
+
+func (s *Suite) TestHandleUpdate_PartialFailureSendsReply() {
+	ctx := context.Background()
+	partial := "Трата на 350 ₽ за 2026-10-21 записана. Подробнее ответить не удалось."
+
+	s.usecase.EXPECT().
+		RegisterMember(gomock.Any(), gomock.Any()).
+		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, "кофе 350").
+		Return(partial, context.DeadlineExceeded)
+	s.sender.EXPECT().
+		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: partial}).
+		Return(&models.Message{}, nil)
+
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "кофе 350"))
+
+	s.Contains(s.logs.String(), `"level":"ERROR"`)
+	s.NotContains(s.logs.String(), "кофе 350")
+}
+
+func (s *Suite) TestHandleUpdate_MessageTooLong() {
+	ctx := context.Background()
+
+	s.sender.EXPECT().
+		SendMessage(gomock.Any(), &bot.SendMessageParams{ChatID: chatID, Text: "Сообщение слишком длинное, сократите его до 1000 символов."}).
+		Return(&models.Message{}, nil)
+
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, strings.Repeat("я", 1001)))
+
+	s.NotContains(s.logs.String(), `"level":"ERROR"`)
+}
+
+func (s *Suite) TestHandleUpdate_MessageAtLimit() {
+	ctx := context.Background()
+	text := strings.Repeat("я", 1000)
+
+	s.usecase.EXPECT().
+		RegisterMember(gomock.Any(), gomock.Any()).
+		Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, text).
+		Return("ok", nil)
+	s.sender.EXPECT().
+		SendMessage(gomock.Any(), gomock.Any()).
+		Return(&models.Message{}, nil)
+
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userA, text))
+}
+
+func (s *Suite) TestHandleUpdate_SameUserMessagesAreSequential() {
+	ctx := context.Background()
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	var mu sync.Mutex
+	var order []string
+
+	s.usecase.EXPECT().RegisterMember(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ int64, text string) (string, error) {
+			mu.Lock()
+			order = append(order, "start "+text)
+			mu.Unlock()
+			if text == "первое" {
+				close(firstStarted)
+				<-releaseFirst
+			}
+			mu.Lock()
+			order = append(order, "end "+text)
+			mu.Unlock()
+			return "ok", nil
+		}).Times(2)
+	s.sender.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&models.Message{}, nil).Times(2)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "первое"))
+	}()
+	<-firstStarted
+	go func() {
+		defer wg.Done()
+		s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "второе"))
+	}()
+	time.Sleep(50 * time.Millisecond)
+	close(releaseFirst)
+	wg.Wait()
+
+	s.Equal([]string{"start первое", "end первое", "start второе", "end второе"}, order)
+	s.Zero(s.handler.Locks().Size())
+}
+
+func (s *Suite) TestHandleUpdate_DifferentUsersAreParallel() {
+	ctx := context.Background()
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+
+	s.usecase.EXPECT().RegisterMember(gomock.Any(), gomock.Any()).Return(nil).Times(2)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, gomock.Any()).
+		DoAndReturn(func(context.Context, int64, string) (string, error) {
+			close(firstStarted)
+			<-releaseFirst
+			return "ok", nil
+		})
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userB, gomock.Any()).
+		Return("ok", nil)
+	s.sender.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&models.Message{}, nil).Times(2)
+
+	done := make(chan struct{})
+	go func() {
+		s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "медленное"))
+		close(done)
+	}()
+	<-firstStarted
+	s.handler.HandleUpdate(ctx, nil, textUpdate(userB, "быстрое"))
+	close(releaseFirst)
+	<-done
+
+	s.Zero(s.handler.Locks().Size())
+}
+
+func (s *Suite) TestHandleUpdate_CanceledWhileWaiting() {
+	ctx, cancel := context.WithCancel(context.Background())
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+
+	s.usecase.EXPECT().RegisterMember(gomock.Any(), gomock.Any()).Return(nil)
+	s.agent.EXPECT().
+		HandleMessage(gomock.Any(), userA, "первое").
+		DoAndReturn(func(context.Context, int64, string) (string, error) {
+			close(firstStarted)
+			<-releaseFirst
+			return "ok", nil
+		})
+	s.sender.EXPECT().SendMessage(gomock.Any(), gomock.Any()).Return(&models.Message{}, nil)
+
+	first := make(chan struct{})
+	go func() {
+		s.handler.HandleUpdate(context.Background(), nil, textUpdate(userA, "первое"))
+		close(first)
+	}()
+	<-firstStarted
+
+	second := make(chan struct{})
+	go func() {
+		s.handler.HandleUpdate(ctx, nil, textUpdate(userA, "второе"))
+		close(second)
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	<-second
+	close(releaseFirst)
+	<-first
+
+	s.Zero(s.handler.Locks().Size())
+	s.NotContains(s.logs.String(), `"level":"ERROR"`)
 }

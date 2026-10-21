@@ -22,12 +22,24 @@ func (s *Server) ListExpenses(ctx context.Context, request openapi.ListExpensesR
 		filter.Category = entity.Category(*request.Params.Category)
 	}
 
-	expenses, err := s.usecase.ListExpenses(ctx, filter)
+	filter.Limit = entity.DefaultPageLimit
+	if request.Params.Limit != nil {
+		filter.Limit = *request.Params.Limit
+	}
+	if request.Params.Offset != nil {
+		filter.Offset = *request.Params.Offset
+	}
+
+	page, err := s.usecase.ListExpenses(ctx, filter)
 	if err != nil {
 		switch {
 		case errors.Is(err, entity.ErrInvalidCategory):
 			return openapi.ListExpenses400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
 				Code: openapi.ErrorCodeInvalidCategory, Message: "unknown category",
+			}}, nil
+		case errors.Is(err, entity.ErrInvalidPagination):
+			return openapi.ListExpenses400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
+				Code: openapi.ErrorCodeInvalidPagination, Message: "limit must be 1..500 and offset must not be negative",
 			}}, nil
 		case errors.Is(err, entity.ErrInvalidDate):
 			return openapi.ListExpenses400JSONResponse{BadRequestJSONResponse: openapi.BadRequestJSONResponse{
@@ -41,9 +53,12 @@ func (s *Server) ListExpenses(ctx context.Context, request openapi.ListExpensesR
 		}
 	}
 
-	response := make(openapi.ListExpenses200JSONResponse, 0, len(expenses))
-	for _, e := range expenses {
-		response = append(response, openapi.Expense{
+	response := openapi.ListExpenses200JSONResponse{
+		Body:    make([]openapi.Expense, 0, len(page.Items)),
+		Headers: openapi.ListExpenses200ResponseHeaders{XTotalCount: page.Count},
+	}
+	for _, e := range page.Items {
+		response.Body = append(response.Body, openapi.Expense{
 			Id:        e.ID,
 			UserId:    e.UserID,
 			Amount:    e.Amount,
